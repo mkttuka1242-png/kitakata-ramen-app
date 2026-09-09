@@ -48,7 +48,7 @@
       { id: 47, name: "台湾料理 広源", area: "喜多方（市街地）", color: "blue" },
       { id: 48, name: "石亭みよし", area: "喜多方（市街地）", color: "blue" },
       { id: 49, name: "せせらぎ食堂", area: "喜多方（市街地）", color: "blue" },
-      { id: 50, name: "ちょもと", area: "喜多方（市街地）", color: "blue" },
+      { id: 50, name: "ちよもと", area: "喜多方（市街地）", color: "blue" },
       { id: 51, name: "道頓堀", area: "喜多方（市街地）", color: "blue" },
       { id: 52, name: "とりそばにこみ和", area: "喜多方（市街地）", color: "blue" },
       { id: 53, name: "とんかつ栄", area: "喜多方（市街地）", color: "blue" },
