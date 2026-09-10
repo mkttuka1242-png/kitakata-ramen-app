@@ -172,3 +172,25 @@
         font-size: 14px;
       }
     }
+
+.filters {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.filters button {
+  flex: 1;
+  padding: 10px 8px;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.filters button.active {
+  background: #333;
+  color: white;
+}

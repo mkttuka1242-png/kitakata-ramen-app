@@ -9,7 +9,9 @@
     const countElement = document.getElementById("count");
     const percentElement = document.getElementById("percent");
     const resetButton = document.getElementById("reset");
-
+const filterAllButton = document.getElementById("filter-all");
+const filterVisitedButton = document.getElementById("filter-visited");
+const filterUnvisitedButton = document.getElementById("filter-unvisited");
     function saveVisited() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(visited));
     }
@@ -77,4 +79,27 @@ resetButton.addEventListener("click", () => {
   updateCount();
 });
 
-updateCount();    
+updateCount();
+filterAllButton.addEventListener("click", () => {
+  document.querySelectorAll(".shop").forEach((button) => button.hidden = false);
+  setActiveFilter(filterAllButton);
+});
+filterVisitedButton.addEventListener("click", () => {
+  document.querySelectorAll(".shop").forEach((button) => {
+    button.hidden = !button.classList.contains("visited");
+  });
+setActiveFilter(filterVisitedButton);  
+});
+filterUnvisitedButton.addEventListener("click", () => {
+  document.querySelectorAll(".shop").forEach((button) => {
+    button.hidden = button.classList.contains("visited");
+  });
+  setActiveFilter(filterUnvisitedButton);
+});
+function setActiveFilter(activeButton) {
+  [filterAllButton, filterVisitedButton, filterUnvisitedButton].forEach((button) => {
+    button.classList.remove("active");
+  });
+
+  activeButton.classList.add("active");
+}
