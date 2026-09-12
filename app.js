@@ -103,3 +103,11 @@ function setActiveFilter(activeButton) {
 
   activeButton.classList.add("active");
 }
+
+const shareXButton = document.getElementById("share-x");
+
+shareXButton.addEventListener("click", () => {
+ const text = `🍜 喜多方ラーメン巡り\n現在${visited.length}/${shopData.length}店を訪問しました！\n制覇率${Math.round((visited.length / shopData.length) * 100)}%\n#喜多方ラーメン\nhttps://mkttuka1242-png.github.io/kitakata-ramen-app/`;
+ const xUrl = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
+ window.open(xUrl, "_blank");
+ }); 
