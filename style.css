@@ -195,7 +195,8 @@
   color: white;
 }
 
-#share-x {
+#share-x ,
+#share-x-top {  
   display: block;
   margin: 18px auto;
   padding: 12px 24px;
