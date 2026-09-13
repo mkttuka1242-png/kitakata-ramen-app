@@ -123,3 +123,48 @@ const shopName = button.querySelector(".name").textContent.toLowerCase();
 button.hidden = !shopName.includes(keyword);
 });
 });
+
+const areaFilter = document.getElementById("area-filter");
+let visitFilter = "all";
+areaFilter.addEventListener("change", () => {
+  const selectedArea = areaFilter.value;
+
+  document.querySelectorAll(".shop").forEach((button) => {
+    const shopArea = button.querySelector(".area").textContent.trim();
+
+    button.hidden =
+      selectedArea !== "all" && shopArea !== selectedArea;
+  });
+});
+
+function applyFilters() {
+const selectedArea = areaFilter.value;
+const keyword = shopSearch.value.trim().toLowerCase();
+
+document.querySelectorAll(".shop").forEach((button) => {
+const shopName = button.querySelector(".name").textContent.toLowerCase();
+const shopArea = button.querySelector(".area").textContent.trim();
+const matchesKeyword = shopName.includes(keyword);
+const matchesArea = selectedArea === "all" || shopArea === selectedArea;
+const matchesVisit = visitFilter === "all" || (visitFilter === "visited" && button.classList.contains("visited")) || (visitFilter === "unvisited" && !button.classList.contains("visited"));
+button.hidden = !(matchesKeyword && matchesArea && matchesVisit);
+});
+}  
+
+shopSearch.addEventListener("input", applyFilters);
+areaFilter.addEventListener("change", applyFilters);
+filterAllButton.addEventListener("click", () => {
+  visitFilter = "all";
+setActiveFilter(filterAllButton);
+applyFilters(); 
+});
+filterVisitedButton.addEventListener("click", () => {
+visitFilter = "visited";
+setActiveFilter(filterVisitedButton);
+applyFilters();
+});
+filterUnvisitedButton.addEventListener("click", () => { 
+  visitFilter = "unvisited";
+    setActiveFilter(filterUnvisitedButton);
+      applyFilters();
+      });    
