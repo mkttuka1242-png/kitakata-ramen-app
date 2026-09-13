@@ -113,3 +113,13 @@ shareXButton.addEventListener("click", () => {
  window.open(xUrl, "_blank");
  }); 
  shareXTopButton.addEventListener("click", () => shareXButton.click());
+
+const shopSearch = document.getElementById("shop-search");
+
+shopSearch.addEventListener("input", () => {
+const keyword = shopSearch.value.trim().toLowerCase();
+document.querySelectorAll(".shop").forEach((button) => {
+const shopName = button.querySelector(".name").textContent.toLowerCase();
+button.hidden = !shopName.includes(keyword);
+});
+});

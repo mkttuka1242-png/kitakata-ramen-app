@@ -208,3 +208,15 @@
   font-weight: bold;
   cursor: pointer;
 }
+
+#shop-search {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto 14px;
+  padding: 12px 16px;
+  border: 1px solid #bbb;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 16px;
+}
