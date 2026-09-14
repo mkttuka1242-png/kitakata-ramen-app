@@ -167,4 +167,12 @@ filterUnvisitedButton.addEventListener("click", () => {
   visitFilter = "unvisited";
     setActiveFilter(filterUnvisitedButton);
       applyFilters();
-      });    
+      });
+      
+const facebookShareTop = document.getElementById("share-facebook-top");
+
+facebookShareTop.addEventListener("click", () => {
+const shareUrl = "https://mkttuka1242-png.github.io/kitakata-ramen-app/";
+const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+window.open(facebookUrl, "_blank", "noopener,noreferrer");
+});
