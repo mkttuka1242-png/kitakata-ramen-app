@@ -244,3 +244,15 @@ color: #fff;
 font-weight: bold;
 cursor: pointer;
 }
+
+#share-threads-top {
+  display: block;
+  margin: 10px auto 18px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 999px;
+  background: #000;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}

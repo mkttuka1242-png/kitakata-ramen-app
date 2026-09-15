@@ -176,3 +176,11 @@ const shareUrl = "https://mkttuka1242-png.github.io/kitakata-ramen-app/";
 const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
 window.open(facebookUrl, "_blank", "noopener,noreferrer");
 });
+
+const threadsShareTop = document.getElementById("share-threads-top");
+
+threadsShareTop.addEventListener("click", () => {
+  const shareUrl = "https://mkttuka1242-png.github.io/kitakata-ramen-app/";
+  const threadsUrl = `https://www.threads.net/intent/post?text=${encodeURIComponent(shareUrl)}`;
+  window.open(threadsUrl, "_blank", "noopener,noreferrer");
+  });
