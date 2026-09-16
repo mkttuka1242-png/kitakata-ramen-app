@@ -181,6 +181,10 @@ const threadsShareTop = document.getElementById("share-threads-top");
 
 threadsShareTop.addEventListener("click", () => {
   const shareUrl = "https://mkttuka1242-png.github.io/kitakata-ramen-app/";
-  const threadsUrl = `https://www.threads.net/intent/post?text=${encodeURIComponent(shareUrl)}`;
+  const done = visited.length;
+  const percent = Math.round((done / shopData.length) * 100);
+  const shareText = ` 喜多方ラーメン巡り\n訪問済み ${done} / ${shopData.length}店\n制覇率 ${percent}%`;
+
+  const threadsUrl = `https://www.threads.com/intent/post?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
   window.open(threadsUrl, "_blank", "noopener,noreferrer");
-  });
+});
