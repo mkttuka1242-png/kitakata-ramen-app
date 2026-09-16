@@ -55,7 +55,7 @@
       { id: 54, name: "ニーハオ", area: "喜多方（市街地）", color: "blue" },
       { id: 55, name: "長谷川食堂", area: "喜多方（市街地）", color: "blue" },
       { id: 56, name: "ラーメン酒場 ばってん", area: "喜多方（市街地）", color: "blue" },
-      { id: 57, name: "RAMEN SHOKUDO! ほふるす", area: "喜多方（市街地）", color: "blue" },
+      { id: 57, name: "RAMEN SHOKUDO! ばぶるす", area: "喜多方（市街地）", color: "blue" },
       { id: 58, name: "ひさじや食堂", area: "喜多方（市街地）", color: "blue" },
       { id: 59, name: "ひとつぶの麦", area: "喜多方（松山町）", color: "blue" },
       { id: 60, name: "お食事とお酒 舟場α", area: "喜多方（市街地）", color: "blue" },
