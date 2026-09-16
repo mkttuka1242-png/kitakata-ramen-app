@@ -70,7 +70,7 @@
       border-radius: 3px;
       background: #fff;
       cursor: pointer;
-      opacity: .48;
+      
       transition: opacity .15s, transform .15s, box-shadow .15s;
       -webkit-tap-highlight-color: transparent;
     }
@@ -255,4 +255,35 @@ cursor: pointer;
   color: #fff;
   font-weight: bold;
   cursor: pointer;
+}
+
+.map-button {
+  display: block;
+  margin: 6px auto 4px;
+  padding: 4px 10px;
+  border: 1px solid #bbb;
+  border-radius: 999px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.map-button:hover {
+  background: #f0f0f0;
+}
+
+.shop:not(.visited) .map-button {
+  opacity: 1;
+  color: #333;
+  background: #fff;
+}
+.shop:not(.visited) .map-button {
+  opacity: 1;
+  filter: none;
+}
+
+.shop:not(.visited) .name,
+.shop:not(.visited) .area {
+  opacity: 0.48;
 }

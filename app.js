@@ -59,6 +59,15 @@ shopData.forEach((shop) => {
     <span class="area">${shop.area}</span>
   `;
 
+ const mapQuery = encodeURIComponent(`${shop.name} 福島県喜多方市`);
+ const mapButton = document.createElement("button");
+ mapButton.textContent = "🗺️ 地図";
+ mapButton.className = "map-button";
+ mapButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  window.open(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`, "_blank");
+});
+button.appendChild(mapButton); 
   button.addEventListener("click", () => toggleVisited(shop.id, button));
   shopsElement.appendChild(button);
 });
