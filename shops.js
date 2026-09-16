@@ -2,7 +2,7 @@
       { id: 1, name: "赤れんが", area: "喜多方（岩月町）", color: "red" },
       { id: 2, name: "ラーメン一平", area: "喜多方（松山町）", color: "red" },
       { id: 3, name: "生江食堂", area: "喜多方（市街地）", color: "red" },
-      { id: 4, name: "かど屋・食堂", area: "喜多方（市街地）", color: "red" },
+      { id: 4, name: "かど屋食堂", area: "喜多方（市街地）", color: "red" },
       { id: 5, name: "ラーメンこうへい", area: "喜多方（市街地）", color: "red" },
       { id: 6, name: "老麺まるや", area: "喜多方（市街地）", color: "red" },
       { id: 7, name: "福島屋", area: "喜多方（市街地）", color: "red" },
