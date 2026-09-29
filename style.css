@@ -185,7 +185,7 @@
   border: 1px solid #bbb;
   border-radius: 8px;
   background: #ffffff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: bold;
   cursor: pointer;
 }
@@ -198,7 +198,7 @@
 #share-x ,
 #share-x-top {  
   display: block;
-  margin: 18px auto;
+  margin: 10px auto;
   padding: 12px 24px;
   border: none;
   border-radius: 999px;
