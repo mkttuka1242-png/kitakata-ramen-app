@@ -311,3 +311,24 @@ cursor: pointer;
 .hours-notice p {
   margin: 0;
 }
+
+@media (max-width: 600px) {
+  .hours-notice {
+    padding: 9px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 10px auto 12px;
+  }
+
+  .hours-notice strong {
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+}
+
+@media (max-width: 600px) {
+  #filter-open {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
