@@ -119,10 +119,16 @@ shopData.forEach((shop) => {
     button.classList.add("visited");
   }
 
-  button.innerHTML = `
-    <span class="name ${shop.color}">${shop.name}</span>
-    <span class="area">${shop.area}</span>
-  `;
+  const nameSpan = document.createElement("span");
+nameSpan.className = `name ${shop.color}`;
+nameSpan.textContent = shop.name;
+
+const areaSpan = document.createElement("span");
+areaSpan.className = "area";
+areaSpan.textContent = shop.area;
+
+button.appendChild(nameSpan);
+button.appendChild(areaSpan);
 if (shop.hours || shop.hoursWeekday || shop.hoursWeekend || shop.hoursByDay) {
   const status = document.createElement("span");
   status.textContent = isOpenNow(shop) ? "営業時間内" : "営業時間外";
