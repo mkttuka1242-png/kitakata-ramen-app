@@ -232,6 +232,7 @@ areaFilter.addEventListener("change", () => {
 function applyFilters() {
 const selectedArea = areaFilter.value;
 const keyword = shopSearch.value.trim().toLowerCase();
+let visibleCount = 0;
 
 document.querySelectorAll(".shop").forEach((button, index) => {
 const shopName = button.querySelector(".name").textContent.toLowerCase();
@@ -241,7 +242,9 @@ const matchesArea = selectedArea === "all" || shopArea === selectedArea;
 const matchesVisit = visitFilter === "all" || (visitFilter === "visited" && button.classList.contains("visited")) || (visitFilter === "unvisited" && !button.classList.contains("visited"));
 const matchesOpen = !openFilter || isOpenNow(shopData[index]);
 button.hidden = !(matchesKeyword && matchesArea && matchesVisit && matchesOpen);
+if (!button.hidden) visibleCount++;
 });
+document.getElementById("result-count").textContent = `該当店舗：${visibleCount}店`;
 }  
 
 shopSearch.addEventListener("input", applyFilters);
@@ -249,6 +252,7 @@ areaFilter.addEventListener("change", applyFilters);
 filterAllButton.addEventListener("click", () => {
   visitFilter = "all";
   openFilter = false;
+  filterOpenButton.classList.remove("active");
 setActiveFilter(filterAllButton);
 applyFilters(); 
 });
