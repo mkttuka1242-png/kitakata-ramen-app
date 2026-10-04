@@ -183,13 +183,12 @@ filterUnvisitedButton.addEventListener("click", () => {
   setActiveFilter(filterUnvisitedButton);
 });
 filterOpenButton.addEventListener("click", () => {
-  document.querySelectorAll(".shop").forEach((button, index) => {
-    button.hidden = !isOpenNow(shopData[index]);
-  });
-  setActiveFilter(filterOpenButton);
+  openFilter = !openFilter;
+applyFilters();
+  filterOpenButton.classList.toggle("active", openFilter);
 });
 function setActiveFilter(activeButton) {
-[filterAllButton, filterVisitedButton, filterUnvisitedButton, filterOpenButton].forEach((button) => {
+[filterAllButton, filterVisitedButton, filterUnvisitedButton].forEach((button) => {
   button.classList.remove("active");
 });
 
@@ -218,6 +217,7 @@ button.hidden = !shopName.includes(keyword);
 
 const areaFilter = document.getElementById("area-filter");
 let visitFilter = "all";
+let openFilter = false;
 areaFilter.addEventListener("change", () => {
   const selectedArea = areaFilter.value;
 
@@ -233,13 +233,14 @@ function applyFilters() {
 const selectedArea = areaFilter.value;
 const keyword = shopSearch.value.trim().toLowerCase();
 
-document.querySelectorAll(".shop").forEach((button) => {
+document.querySelectorAll(".shop").forEach((button, index) => {
 const shopName = button.querySelector(".name").textContent.toLowerCase();
 const shopArea = button.querySelector(".area").textContent.trim();
 const matchesKeyword = shopName.includes(keyword);
 const matchesArea = selectedArea === "all" || shopArea === selectedArea;
 const matchesVisit = visitFilter === "all" || (visitFilter === "visited" && button.classList.contains("visited")) || (visitFilter === "unvisited" && !button.classList.contains("visited"));
-button.hidden = !(matchesKeyword && matchesArea && matchesVisit);
+const matchesOpen = !openFilter || isOpenNow(shopData[index]);
+button.hidden = !(matchesKeyword && matchesArea && matchesVisit && matchesOpen);
 });
 }  
 
@@ -247,6 +248,7 @@ shopSearch.addEventListener("input", applyFilters);
 areaFilter.addEventListener("change", applyFilters);
 filterAllButton.addEventListener("click", () => {
   visitFilter = "all";
+  openFilter = false;
 setActiveFilter(filterAllButton);
 applyFilters(); 
 });
