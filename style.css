@@ -332,3 +332,24 @@ cursor: pointer;
     white-space: nowrap;
   }
 }
+@media (max-width: 600px) {
+  #result-count {
+    width: 100%;
+    text-align: center;
+    margin: 8px 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+}
+@media (max-width: 600px) {
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .filters button {
+    width: 100%;
+    margin: 0;
+  }
+}
