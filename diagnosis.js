@@ -11,6 +11,7 @@ let selectedQuestions = [];
 const previousQuestionKey = "kitakata-ramen-previous-questions";
 
 let visitTiming = null;
+let selectedTodayPeriod = null;
 const HOURS_NOTICE_TEXT = "営業時間・定休日は、Googleマップの記載や現地確認など、独自調査で得た情報をもとにしています。情報に誤りがある場合や、調査後に変更されている場合があります。また、臨時休業や材料切れによる早仕舞いなど、実際の営業状況とは異なることがあります。ご来店前に店舗の最新情報をご確認ください。";
 function appendHoursNotice() {
   const notice = document.createElement("p");
@@ -28,6 +29,7 @@ const todayVisitPeriods = {
 };
 
 function showVisitTimingQuestion() {
+  selectedTodayPeriod = null;
   const hour = new Date().getHours();
 
   diagnosisPanel.hidden = false;
@@ -44,7 +46,7 @@ function showVisitTimingQuestion() {
 
 function ensureVisitTimingAvailable() {
   const period = todayVisitPeriods[visitTiming];
-  if (!period || new Date().getHours() < period.end) return true;
+  if (!period || (selectedTodayPeriod?.timing === visitTiming && new Date() < selectedTodayPeriod.end)) return true;
   visitTiming = null;
   currentQuestion = 0;
   diagnosisAnswers.length = 0;
@@ -127,6 +129,16 @@ diagnosisPanel.addEventListener("click", (event) => {
   if (!button) return;
 
   visitTiming = button.dataset.visitTiming;
+  selectedTodayPeriod = null;
+  const period = todayVisitPeriods[visitTiming];
+  if (period) {
+    const selectedAt = new Date();
+    const start = new Date(selectedAt);
+    const end = new Date(selectedAt);
+    start.setHours(period.start, 0, 0, 0);
+    end.setHours(period.end, 0, 0, 0);
+    selectedTodayPeriod = { timing: visitTiming, targetDate: dateKey(selectedAt), start, end };
+  }
   if (!ensureVisitTimingAvailable()) return;
 
   if (visitTiming === "tomorrow") {
@@ -355,9 +367,9 @@ function getVisitDate() {
   const date = new Date();
   const period = todayVisitPeriods[visitTiming];
   if (period) {
-    const planned = new Date(date);
-    planned.setHours(period.start, 0, 0, 0);
-    return planned > date ? planned : date;
+    // 終了後を「日付未指定」のnullにせず、営業判定でunknownになる無効日付にする。
+    if (selectedTodayPeriod?.timing !== visitTiming || date >= selectedTodayPeriod.end) return new Date(NaN);
+    return selectedTodayPeriod.start > date ? new Date(selectedTodayPeriod.start) : date;
   }
 
   const visitHours = {

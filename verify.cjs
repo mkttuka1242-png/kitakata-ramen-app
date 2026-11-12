@@ -126,5 +126,36 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  check(timed.get('diagnosis-panel').innerHTML.includes('tomorrow-lunch') && timed.get('diagnosis-panel').innerHTML.includes('tomorrow-evening') && timed.get('diagnosis-panel').innerHTML.includes('tomorrow-night'), 'tomorrow timing choices unchanged');
  selectTiming('later'); check(timed.run('getVisitDate()')===null, 'later remains unspecified date');
  selectTiming('now'); check(timed.run('getVisitDate().getTime()')===new Date('2026-11-09T23:59:59').getTime(), 'now unchanged');
+ // 選択した日と開始・終了日時を固定し、日付またぎで時間帯を復活させない。
+ for (const day of ['2026-11-09','2026-11-30','2026-12-31']) {
+   for (const [timing,start,end] of [['today-lunch',12,15],['today-evening',17,19],['today-night',19,20]]) {
+     const selectedAt=new Date(day+'T'+String(end-1).padStart(2,'0')+':59:00');
+     const x=await boot({now:selectedAt.getTime()});
+     const select=value=>x.get('diagnosis-panel').fire('click',{target:{closest:s=>s==='button[data-visit-timing]'?{dataset:{visitTiming:value}}:null}});
+     const answer=()=>x.get('diagnosis-panel').fire('click',{target:{closest:s=>s==='button[data-answer]'?{dataset:{answer:'0'}}:null}});
+     const expectedStart=new Date(selectedAt); expectedStart.setHours(start,0,0,0);
+     const expectedEnd=new Date(selectedAt); expectedEnd.setHours(end,0,0,0);
+     select(timing);
+     check(x.run('selectedTodayPeriod.targetDate')===day && x.run('selectedTodayPeriod.start.getTime()')===expectedStart.getTime() && x.run('selectedTodayPeriod.end.getTime()')===expectedEnd.getTime(), timing+' selected period anchored '+day);
+     x.setNow(expectedEnd.getTime()-1);
+     check(x.run('ensureVisitTimingAvailable()') && x.run('getVisitDate().getTime()')===expectedEnd.getTime()-1, timing+' valid until last millisecond '+day);
+     x.setNow(expectedEnd.getTime()); answer();
+     check(x.run('visitTiming===null && selectedTodayPeriod===null && diagnosisAnswers.length===0'), timing+' expires at same-day end '+day);
+     x.setNow(selectedAt.getTime()); select(timing);
+     const nextMidnight=new Date(selectedAt); nextMidnight.setDate(nextMidnight.getDate()+1); nextMidnight.setHours(0,1,0,0);
+     x.setNow(nextMidnight.getTime());
+     check(x.run('Number.isNaN(getVisitDate().getTime())'), timing+' expired date cannot be rebased '+day);
+     check(x.run('selectedTodayPeriod.targetDate')===day && x.run('selectedTodayPeriod.end.getTime()')===expectedEnd.getTime(), timing+' keeps original bounds after midnight '+day);
+     answer();
+     check(x.run('visitTiming===null && selectedTodayPeriod===null && currentQuestion===0 && diagnosisAnswers.length===0') && x.get('diagnosis-panel').innerHTML.includes('data-visit-timing'), timing+' midnight answer restarts timing '+day);
+     check(resultTexts(x).some(t=>t.includes('選択した時間帯が終了')), timing+' midnight expiry notice '+day);
+     select(timing);
+     check(x.run('selectedTodayPeriod.targetDate')===nextMidnight.getFullYear()+'-'+String(nextMidnight.getMonth()+1).padStart(2,'0')+'-'+String(nextMidnight.getDate()).padStart(2,'0'), timing+' explicit reselection uses new day '+day);
+     select('tomorrow-lunch');
+     const tomorrow=new Date(nextMidnight); tomorrow.setDate(tomorrow.getDate()+1); tomorrow.setHours(12,0,0,0);
+     check(x.run('selectedTodayPeriod===null') && x.run('getVisitDate().getTime()')===tomorrow.getTime(), 'tomorrow unchanged after rollover '+timing+' '+day);
+     select('later'); check(x.run('selectedTodayPeriod===null && getVisitDate()===null'), 'later unchanged after rollover '+timing+' '+day);
+   }
+ }
  console.log('PASS '+checks+' checks (Node VM + DOM stub; not a browser)');
 })().catch(e=>{console.error(e);process.exitCode=1;});
