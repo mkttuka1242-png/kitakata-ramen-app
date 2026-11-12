@@ -4,14 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f5f1e8">
-  <title>喜多方ラーメン巡り</title>
+<title>🍜喜多方ラーメン95🍜</title>
 <link rel="stylesheet" href="style.css">
- 
+
 </head>
 
 <body>
   <main class="app">
-    <h1>🍜 喜多方ラーメン巡りアプリ 🍜</h1>
+<h1>🍜 喜多方ラーメン95 🍜 <button type="button" id="about-toggle" aria-expanded="false" aria-controls="about-info" style="font-size: 16px; vertical-align: middle; cursor: pointer;" title="95について">ⓘ</button></h1>
+<div id="about-info" hidden style="max-width: 600px; margin: 12px auto; padding: 14px; background: #fffaf0; border: 1px solid #ddd; border-radius: 8px; line-height: 1.8;">
+  <strong>「95」って何？</strong>
+  <p>このアプリには95店舗を登録しています。</p>
+  <p>このアプリは、ラーメン専門店に限らず、喜多方市内でラーメンを提供するお店を探し、巡るためのお手伝いをします。</p>
+
+</div>
+<p style="text-align: center; font-weight: bold;">探して、食べて、記録する。喜多方ラーメン巡りをもっと楽しく！</p>
     <p class="note">店舗をタップすると訪問済みになります。もう一度タップすると解除できます。</p>
 
     <section class="summary" aria-live="polite">
@@ -35,21 +42,34 @@
 <option value="山都町">山都町</option>
 <option value="高郷町">高郷町</option>
 </select>
+<div class="hours-notice">
+  <strong>🕐 営業時間・定休日について</strong>
+  <p>
+    営業時間・定休日は、Googleマップの記載や現地確認など、独自調査で得た情報をもとにしています。情報に誤りがある場合や、調査後に変更されている場合があります。また、臨時休業や材料切れによる早仕舞いなど、実際の営業状況とは異なることがあります。ご来店前に店舗の最新情報をご確認ください。
+  </p>
+</div>
 <div id="result-count">表示中 95店</div>
 <div class="filters">
- 
+
   <button id="filter-all"  class="active" type="button">すべて</button>
   <button id="filter-visited" type="button">訪問済み</button>
   <button id="filter-unvisited" type="button">未訪問</button>
-  <button id="filter-open">🕐 今やってる店舗</button>
+  <button id="filter-open">営業時間内の店舗</button>
 </div>
-<div class="hours-notice">
-  <strong>🕐 営業時間について</strong>
-  <p>
-    掲載している営業時間は、公式情報や各種公開情報をもとに当サイトで確認した参考情報です。<br>
-    臨時休業・営業時間の変更・スープや材料がなくなり次第終了する場合があります。ご来店前に店舗の最新情報をご確認ください。
-  </p>
+
+<div class="diagnosis-entry">
+  <button id="start-diagnosis" type="button">
+    🍜 あなたにおすすめの一杯を診断
+  </button>
+
+<button id="start-roulette" type="button">🎲 おまかせルーレット</button>
+
 </div>
+
+<div id="diagnosis-panel" hidden></div>
+
+
+
     <section id="shops" aria-label="ラーメン店一覧"></section>
 
     <div class="actions">
@@ -62,5 +82,30 @@
 
 
   <script src="app.js"></script>
+
+  <script src="questions.js"></script>
+
+<script src="diagnosis.js"></script>
+<script>
+  const aboutToggle = document.getElementById("about-toggle");
+  const aboutInfo = document.getElementById("about-info");
+
+  let aboutTimer;
+
+aboutToggle.addEventListener("click", () => {
+  clearTimeout(aboutTimer);
+
+  aboutInfo.hidden = !aboutInfo.hidden;
+  aboutToggle.setAttribute("aria-expanded", String(!aboutInfo.hidden));
+
+  if (!aboutInfo.hidden) {
+    aboutTimer = setTimeout(() => {
+      aboutInfo.hidden = true;
+      aboutToggle.setAttribute("aria-expanded", "false");
+    }, 15000);
+  }
+});
+</script>
+
 </body>
 </html>
