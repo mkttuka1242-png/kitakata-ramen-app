@@ -1,5 +1,23 @@
+const storageNotice = document.createElement("p");
+storageNotice.setAttribute("role", "status");
+document.querySelector(".summary").after(storageNotice);
+function readStoredArray(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const value = raw === null ? [] : JSON.parse(raw);
+    if (!Array.isArray(value)) throw new Error("Invalid storage");
+    return value;
+  } catch (error) {
+    storageNotice.textContent = "保存データを読み込めませんでした。元の保存内容は変更せず、今回は空の記録で表示します。チェック操作後は新しい記録を保存します。";
+    return [];
+  }
+}
+function writeStoredArray(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch (error) { storageNotice.textContent = "記録を保存できません。この画面での変更は再読み込みすると失われる場合があります。"; }
+}
     const STORAGE_KEY = "kitakata-ramen-visited-v1";
-    let visited = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    let visited = readStoredArray(STORAGE_KEY);
 
     if (!Array.isArray(visited)) {
       visited = [];
@@ -14,7 +32,7 @@ const filterVisitedButton = document.getElementById("filter-visited");
 const filterUnvisitedButton = document.getElementById("filter-unvisited");
 const filterOpenButton = document.getElementById("filter-open");
     function saveVisited() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(visited));
+      writeStoredArray(STORAGE_KEY, visited);
     }
 
     function updateCount() {
@@ -40,71 +58,93 @@ const filterOpenButton = document.getElementById("filter-open");
 
       saveVisited();
       updateCount();
+      applyFilters();
     }
 let holidayDates = [];
-fetch("https://holidays-jp.github.io/api/v1/date.json")
-  .then((response) => response.json())
-  .then((data) => {
-      holidayDates = Object.keys(data);
-      document.querySelectorAll(".shop").forEach((button, index) => {
-  const status = button.querySelector(".open-status");
-  if (status) {
-    status.textContent = isOpenNow(shopData[index]) ? "営業時間内" : "営業時間外";
-  }
-});
-});
-function isOpenNow(shop) {
-if (!shop.hours && !shop.hoursWeekday && !shop.hoursWeekend && !shop.hoursByDay && !shop.winterHours) return false; 
-const today = new Date().getDay();
-
-const now = new Date();
-const currentMonth = now.getMonth() + 1;
-const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-const isHoliday = holidayDates.includes(todayDate);
-const yesterday = new Date(now);
-yesterday.setDate(now.getDate() - 1);
-const yesterdayDate = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
-const wasYesterdayHoliday = holidayDates.includes(yesterdayDate);
-if (shop.closedAfterHoliday && wasYesterdayHoliday && shop.closedDays?.includes(yesterday.getDay())) return false;
-if (shop.closedDays && shop.closedDays.includes(today) && !isHoliday) return false;
-if (shop.winterClosedDays && [12, 1, 2, 3].includes(currentMonth) && shop.winterClosedDays.includes(today) && !isHoliday) return false;
-if (shop.firstWeekdayClosed === today && now.getDate() <= 7 && !isHoliday) return false;
-
- const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-const isWeekend = today === 0 || today === 6;
-const isSpringToAutumn = [4, 5, 6, 7, 8, 9, 10, 11].includes(currentMonth);
-const hours =
-  ([12, 1, 2].includes(currentMonth) &&
-    (isWeekend || isHoliday
-      ? shop.winterHoursWeekend
-      : shop.winterHoursWeekday)) ||
-  ([12, 1, 2].includes(currentMonth) && shop.winterHours) ||
-  (isSpringToAutumn &&
-    (isWeekend || isHoliday) &&
-    shop.springToAutumnWeekendHours) ||
-  shop.hoursByDay?.[today] ||
-  (isWeekend || isHoliday
-    ? shop.hoursWeekend || shop.hours
-    : shop.hoursWeekday || shop.hours);
-if (!hours) return false;
-const timeRanges = hours.split(",");
-
-  return timeRanges.some((timeRange) => {
-    const [open, close] = timeRange.split("-");
-    const [openHour, openMinute] = open.split(":").map(Number);
-    const [closeHour, closeMinute] = close.split(":").map(Number);
-
-    const openMinutes = openHour * 60 + openMinute;
-    const closeMinutes = closeHour * 60 + closeMinute;
-
-    if (closeMinutes <= openMinutes) {
-  return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+let holidayState = "loading";
+const holidayNotice = document.createElement("p");
+holidayNotice.id = "holiday-status";
+holidayNotice.setAttribute("role", "status");
+document.querySelector(".hours-notice").append(holidayNotice);
+function dateKey(date) {
+  return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
 }
-
-return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+function holidaysKnownFor(date) {
+  return holidayDates.some(key => key.startsWith(date.getFullYear() + "-"));
+}
+function scheduleForDate(shop, date) {
+  const day = date.getDay(), month = date.getMonth() + 1;
+  const previous = new Date(date); previous.setDate(date.getDate() - 1);
+  if (!holidaysKnownFor(date) || (shop.closedAfterHoliday && !holidaysKnownFor(previous)))
+    return { status: "unknown", label: "判定できません" };
+  const holiday = holidayDates.includes(dateKey(date));
+  if (shop.closedAfterHoliday && holidayDates.includes(dateKey(previous)) && shop.closedDays?.includes(previous.getDay()))
+    return { status: "closed", label: "定休日" };
+  if (shop.closedDays?.includes(day) && !holiday) return { status: "closed", label: "定休日" };
+  if (shop.winterClosedDays?.includes(day) && [12,1,2,3].includes(month) && !holiday) return { status: "closed", label: "定休日" };
+  if (shop.firstWeekdayClosed === day && date.getDate() <= 7 && !holiday) return { status: "closed", label: "定休日" };
+  const weekend = day === 0 || day === 6 || holiday;
+  const hours = ([12,1,2].includes(month) && (weekend ? shop.winterHoursWeekend : shop.winterHoursWeekday)) ||
+    ([12,1,2].includes(month) && shop.winterHours) ||
+    ([4,5,6,7,8,9,10,11].includes(month) && weekend && shop.springToAutumnWeekendHours) ||
+    shop.hoursByDay?.[day] || (weekend ? shop.hoursWeekend || shop.hours : shop.hoursWeekday || shop.hours);
+  return typeof hours === "string" ? { status: "possible", hours } : { status: "unknown", label: "営業時間不明" };
+}
+function hoursMatch(hours, minutes, previousDay = false) {
+  if (typeof hours !== "string") return false;
+  return hours.split(",").some(range => {
+    const m = range.trim().match(/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/);
+    if (!m) return false;
+    const start = Number(m[1])*60 + Number(m[2]), end = Number(m[3])*60 + Number(m[4]);
+    if (Number(m[1]) > 23 || Number(m[2]) > 59 || Number(m[3]) > 24 || Number(m[4]) > 59 || (Number(m[3]) === 24 && Number(m[4]) !== 0)) return false;
+    if (previousDay) return end <= start && minutes < end;
+    return end <= start ? minutes >= start : minutes >= start && minutes < end;
   });
 }
+function shopHoursStatus(shop, date, checkTime = true, requireClosedDays = false) {
+  if (!date || Number.isNaN(date.getTime())) return { status: "unknown", label: "訪問日を決めてから営業情報をご確認ください" };
+  const today = scheduleForDate(shop, date);
+  const hasClosedDays = Array.isArray(shop.closedDays) || shop.firstWeekdayClosed !== undefined || Array.isArray(shop.winterClosedDays);
+  const possible = hours => requireClosedDays && !hasClosedDays
+    ? { status: "unknown", label: "判定できません" }
+    : { status: "possible", label: "営業時間内" };
+  if (!checkTime) return today.status === "possible" ? (requireClosedDays && !hasClosedDays ? possible(today.hours) : { status: "possible", label: "営業時間：" + today.hours + "" }) : today;
+  const minutes = date.getHours()*60 + date.getMinutes();
+  if (hoursMatch(today.hours, minutes)) return possible(today.hours);
+  const previous = new Date(date); previous.setDate(date.getDate() - 1);
+  const yesterday = scheduleForDate(shop, previous);
+  if (hoursMatch(yesterday.hours, minutes, true)) return possible(yesterday.hours);
+  if (today.status === "unknown" || yesterday.status === "unknown") return { status: "unknown", label: today.label === "営業時間不明" ? "営業時間不明" : "判定できません" };
+  return { status: "closed", label: today.status === "closed" ? today.label : "営業時間外" };
+}
+function isOpenNow(shop, now = new Date()) {
+  return shopHoursStatus(shop, now).status === "possible";
+}
+function refreshHours() {
+  holidayNotice.textContent = holidayState === "loading" ? "祝日情報を確認しています。" :
+    holidayState === "failed" ? "祝日情報を取得できませんでした。祝日の営業や振替休業を正しく表示できない場合があります。" :
+    holidaysKnownFor(new Date()) ? "営業時間の判定には祝日も考慮しています。" : "今年の祝日情報を確認できないため、判定できません。";
+  document.querySelectorAll(".shop").forEach((button, index) => {
+    button.querySelector(".open-status").textContent = shopHoursStatus(shopData[index], new Date()).label;
+  });
+  applyFilters();
+}
+async function loadHolidays() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch("https://holidays-jp.github.io/api/v1/date.json", { signal: controller.signal });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const data = await response.json();
+    if (!data || Array.isArray(data) || typeof data !== "object") throw new Error("Invalid holidays");
+    const keys = Object.keys(data);
+    if (!keys.length || !keys.every(key => /^\d{4}-\d{2}-\d{2}$/.test(key))) throw new Error("Invalid dates");
+    holidayDates = keys;
+    holidayState = "ready";
+  } catch (error) { holidayDates = []; holidayState = "failed"; }
+  finally { clearTimeout(timer); refreshHours(); }
+}
+
 shopData.forEach((shop) => {
   const button = document.createElement("button");
   button.type = "button";
@@ -129,12 +169,10 @@ areaSpan.textContent = shop.area;
 
 button.appendChild(nameSpan);
 button.appendChild(areaSpan);
-if (shop.hours || shop.hoursWeekday || shop.hoursWeekend || shop.hoursByDay) {
-  const status = document.createElement("span");
-  status.textContent = isOpenNow(shop) ? "営業時間内" : "営業時間外";
-  status.className = "open-status";
-  button.appendChild(status);
-}
+const status = document.createElement("span");
+status.className = "open-status";
+status.textContent = shopHoursStatus(shop, new Date()).label;
+button.appendChild(status);
 
  const mapQuery = encodeURIComponent(`${shop.name} 福島県喜多方市`);
  const mapButton = document.createElement("button");
@@ -163,25 +201,10 @@ resetButton.addEventListener("click", () => {
   });
 
   updateCount();
+  applyFilters();
 });
 
 updateCount();
-filterAllButton.addEventListener("click", () => {
-  document.querySelectorAll(".shop").forEach((button) => button.hidden = false);
-  setActiveFilter(filterAllButton);
-});
-filterVisitedButton.addEventListener("click", () => {
-  document.querySelectorAll(".shop").forEach((button) => {
-    button.hidden = !button.classList.contains("visited");
-  });
-setActiveFilter(filterVisitedButton);  
-});
-filterUnvisitedButton.addEventListener("click", () => {
-  document.querySelectorAll(".shop").forEach((button) => {
-    button.hidden = button.classList.contains("visited");
-  });
-  setActiveFilter(filterUnvisitedButton);
-});
 filterOpenButton.addEventListener("click", () => {
   openFilter = !openFilter;
 applyFilters();
@@ -207,27 +230,9 @@ shareXButton.addEventListener("click", () => {
 
 const shopSearch = document.getElementById("shop-search");
 
-shopSearch.addEventListener("input", () => {
-const keyword = shopSearch.value.trim().toLowerCase();
-document.querySelectorAll(".shop").forEach((button) => {
-const shopName = button.querySelector(".name").textContent.toLowerCase();
-button.hidden = !shopName.includes(keyword);
-});
-});
-
 const areaFilter = document.getElementById("area-filter");
 let visitFilter = "all";
 let openFilter = false;
-areaFilter.addEventListener("change", () => {
-  const selectedArea = areaFilter.value;
-
-  document.querySelectorAll(".shop").forEach((button) => {
-    const shopArea = button.querySelector(".area").textContent.trim();
-
-    button.hidden =
-      selectedArea !== "all" && shopArea !== selectedArea;
-  });
-});
 
 function applyFilters() {
 const selectedArea = areaFilter.value;
@@ -286,3 +291,6 @@ threadsShareTop.addEventListener("click", () => {
   const threadsUrl = `https://www.threads.com/intent/post?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
   window.open(threadsUrl, "_blank", "noopener,noreferrer");
 });
+refreshHours();
+loadHolidays();
+setInterval(refreshHours, 60000);

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>喜多方ラーメン95・営業判定テスト</title>
+  <style>
+    body {
+      max-width: 800px;
+      margin: 24px auto;
+      padding: 0 16px;
+      font-family: sans-serif;
+      line-height: 1.7;
+      background: #f5f1e8;
+    }
+    input, button {
+      padding: 10px;
+      margin: 4px 0;
+      font-size: 16px;
+    }
+    li {
+      padding: 8px;
+      margin: 6px 0;
+      background: white;
+      border-radius: 6px;
+    }
+    #message { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>営業判定テスト</h1>
+  <p>営業時間・定休日は、Googleマップの記載や現地確認など、独自調査で得た情報をもとにしています。情報に誤りがある場合や、調査後に変更されている場合があります。また、臨時休業や材料切れによる早仕舞いなど、実際の営業状況とは異なることがあります。ご来店前に店舗の最新情報をご確認ください。</p>
+  <p>日時は日本時間で指定してください。端末のタイムゾーンも日本に設定してください。</p>
+
+  <label for="test-date">確認する日時</label><br>
+  <input id="test-date" type="datetime-local">
+  <button id="run" disabled>この日時で確認</button>
+
+  <p id="message" role="status">アプリを読み込んでいます…</p>
+  <ul id="results"></ul>
+
+  <iframe id="app-frame" src="index.html" hidden></iframe>
+
+  <script>
+    const dateInput = document.getElementById("test-date");
+    const runButton = document.getElementById("run");
+    const message = document.getElementById("message");
+    const results = document.getElementById("results");
+    const frame = document.getElementById("app-frame");
+    const pad = value => String(value).padStart(2, "0");
+    const now = new Date();
+
+    dateInput.value =
+      `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+      `T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    let appWindow;
+    let shops;
+
+    frame.addEventListener("load", async () => {
+      try {
+        appWindow = frame.contentWindow;
+        shops = appWindow.eval("shopData");
+
+        if (!Array.isArray(shops) ||
+            typeof appWindow.isOpenNow !== "function") {
+          throw new Error("店舗情報を読み込めませんでした。");
+        }
+
+        // 本体の祝日データ取得を最大10秒待ちます。
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if (appWindow.eval("holidayDates.length") > 0) break;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        runButton.disabled = false;
+        message.textContent = "準備できました。日時を指定して確認できます。";
+      } catch (error) {
+        message.textContent =
+          "読み込みエラー：" + error.message +
+          " Live Serverで開き、同じフォルダーにindex.htmlがあるか確認してください。";
+      }
+    });
+
+    runButton.addEventListener("click", () => {
+      results.replaceChildren();
+      const selectedDate = new Date(dateInput.value);
+
+      if (!dateInput.value || Number.isNaN(selectedDate.getTime())) {
+        message.textContent = "日時を正しく入力してください。";
+        return;
+      }
+
+      try {
+        const holidays = appWindow.eval("holidayDates");
+        const year = String(selectedDate.getFullYear());
+
+        // 対象年の祝日情報がない場合、誤った結果を出さず停止します。
+        if (!holidays.some(date => date.startsWith(year + "-"))) {
+          message.textContent =
+            `${year}年の祝日情報を確認できないため、判定できません。` +
+            "少し待って再度確認するか、別の年の日時を選んでください。";
+          return;
+        }
+
+        const openShops = shops.filter(shop =>
+          appWindow.isOpenNow(shop, selectedDate)
+        );
+
+        message.textContent =
+          `${selectedDate.toLocaleString("ja-JP")}：` +
+          `営業時間内 ${openShops.length}店舗`;
+
+        for (const shop of openShops) {
+          const item = document.createElement("li");
+          item.textContent = `${shop.name} ／ ${shop.area}`;
+          results.appendChild(item);
+        }
+      } catch (error) {
+        message.textContent = "判定エラー：" + error.message;
+      }
+    });
+  </script>
+</body>
+</html>
