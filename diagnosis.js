@@ -21,6 +21,12 @@ function appendHoursNotice() {
 
 
 
+const todayVisitPeriods = {
+  "today-lunch": { start: 12, end: 15 },
+  "today-evening": { start: 17, end: 19 },
+  "today-night": { start: 19, end: 20 },
+};
+
 function showVisitTimingQuestion() {
   const hour = new Date().getHours();
 
@@ -28,14 +34,27 @@ function showVisitTimingQuestion() {
   diagnosisPanel.innerHTML = `
     <h2>🍜 いつラーメンを食べに行きますか？</h2>
     <button type="button" data-visit-timing="now">今から食べに行く</button>
-    ${hour < 15 ? '<button type="button" data-visit-timing="today-lunch">☀️ 今日の昼</button>' : ''}
-    ${hour < 17 ? '<button type="button" data-visit-timing="today-evening">🌆 今日の夕方</button>' : ''}
-    ${hour < 20 ? '<button type="button" data-visit-timing="today-night">🌙 今日の夜</button>' : ''}
+    ${hour < todayVisitPeriods["today-lunch"].end ? '<button type="button" data-visit-timing="today-lunch">☀️ 今日の昼</button>' : ''}
+    ${hour < todayVisitPeriods["today-evening"].end ? '<button type="button" data-visit-timing="today-evening">🌆 今日の夕方</button>' : ''}
+    ${hour < todayVisitPeriods["today-night"].end ? '<button type="button" data-visit-timing="today-night">🌙 今日の夜</button>' : ''}
     <button type="button" data-visit-timing="tomorrow">明日</button>
     <button type="button" data-visit-timing="later">別の日</button>
   `;
 }
 
+function ensureVisitTimingAvailable() {
+  const period = todayVisitPeriods[visitTiming];
+  if (!period || new Date().getHours() < period.end) return true;
+  visitTiming = null;
+  currentQuestion = 0;
+  diagnosisAnswers.length = 0;
+  showVisitTimingQuestion();
+  const notice = document.createElement("p");
+  notice.setAttribute("role", "status");
+  notice.textContent = "選択した時間帯が終了しました。訪問日時を選び直してください。";
+  diagnosisPanel.append(notice);
+  return false;
+}
 
 
 
@@ -108,6 +127,7 @@ diagnosisPanel.addEventListener("click", (event) => {
   if (!button) return;
 
   visitTiming = button.dataset.visitTiming;
+  if (!ensureVisitTimingAvailable()) return;
 
   if (visitTiming === "tomorrow") {
     diagnosisPanel.innerHTML = `
@@ -129,6 +149,7 @@ diagnosisPanel.addEventListener("click", (event) => {
 diagnosisPanel.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-answer]");
   if (!button) return;
+  if (!ensureVisitTimingAvailable()) return;
 
   const selectedIndex = Number(button.dataset.answer);
   diagnosisAnswers.push(selectedQuestions[currentQuestion].options[selectedIndex]);
@@ -332,11 +353,14 @@ function pickRandomRamenShop() {
 
 function getVisitDate() {
   const date = new Date();
+  const period = todayVisitPeriods[visitTiming];
+  if (period) {
+    const planned = new Date(date);
+    planned.setHours(period.start, 0, 0, 0);
+    return planned > date ? planned : date;
+  }
 
   const visitHours = {
-    "today-lunch": 12,
-    "today-evening": 17,
-    "today-night": 19,
     "tomorrow-lunch": 12,
     "tomorrow-evening": 17,
     "tomorrow-night": 19,

@@ -10,15 +10,21 @@ class Element {
   replaceChildren(...e){this.children=e;} addEventListener(k,f){(this.listeners[k]??=[]).push(f);} click(){this.fire('click',{target:this});} fire(k,event={}){for(const f of this.listeners[k]||[]) f(event);}
   querySelector(s){return this.children.find(e=>e.classes.has(s.slice(1)))||null;} animate(){}
 }
-async function boot({stored='[2]', fail=false, blocked=false, pending=false}={}) {
+async function boot({stored='[2]', fail=false, blocked=false, pending=false, now=null}={}) {
+ let clockTime = now === null ? null : new Date(now).getTime();
+ class TestDate extends Date {
+   constructor(...args) { super(...(args.length ? args : [clockTime === null ? Date.now() : clockTime])); }
+   static now() { return clockTime === null ? Date.now() : clockTime; }
+ }
  const ids={}; const find=(nodes,id)=>{for(const n of nodes){if(n.id===id)return n;const found=find(n.children||[],id);if(found)return found;}}; const get=id=>ids[id]||find(Object.values(ids),id)||(ids[id]=new Element()); get('shop-search').value='';
  const storage=new Map([['kitakata-ramen-visited-v1',stored],['kitakata-ramen-previous-questions','broken']]);
  const doc={getElementById:get,createElement:()=>new Element(),querySelector:s=>get(s),querySelectorAll:s=>get('shops').children.filter(e=>s==='.shop'||s==='.shop.visited'&&e.classes.has('visited'))};
  let resolveFetch; const response={ok:true,json:async()=>({'2026-01-01':'fixture','2026-11-03':'fixture','2025-01-01':'fixture'})};
  const sandbox={document:doc,localStorage:{getItem:k=>{if(blocked)throw Error('blocked');return storage.get(k)??null;},setItem:(k,v)=>{if(blocked)throw Error('blocked');storage.set(k,v);}},fetch:()=>pending?new Promise(r=>resolveFetch=r):fail?Promise.reject(Error('offline')):Promise.resolve(response),AbortController,setTimeout:()=>1,clearTimeout(){},setInterval(){},window:{confirm:()=>true,open:(...a)=>sandbox.opened.push(a)},opened:[],console};
+ sandbox.Date=TestDate;
  vm.createContext(sandbox); for(const file of ['shops.js','app.js','questions.js','diagnosis.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
  const run=code=>vm.runInContext(code,sandbox); await new Promise(r=>setImmediate(r));
- return {get,run,storage,sandbox,finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
+ return {get,run,storage,sandbox,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
 }
 (async()=>{
  let checks=0; const check=(v,msg)=>{assert.ok(v,msg);checks++;};
@@ -77,5 +83,48 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false}={})
  }
  known.run('visitTiming="later"; getVisitDate=()=>null; showDiagnosisResult(pickRecommendedRamenShop());');
  check(resultTexts(known).includes(normalResultText), 'unspecified future date keeps existing guidance');
+ // 今日の時間帯は開始前なら予定時刻、途中なら現在時刻を使う。
+ const timed=await boot({now:'2026-11-09T14:30:00'});
+ const selectTiming = timing => timed.get('diagnosis-panel').fire('click', {target:{closest:selector=>selector==='button[data-visit-timing]' ? {dataset:{visitTiming:timing}} : null}});
+ for (const [timing,start,end] of [['today-lunch',12,15],['today-evening',17,19],['today-night',19,20]]) {
+   const startMs=new Date(2026,10,9,start).getTime();
+   const endMs=new Date(2026,10,9,end).getTime();
+   for (const ms of [startMs-1,startMs,startMs+1,endMs-1,endMs,endMs+1]) {
+     timed.setNow(ms);
+     timed.run('showVisitTimingQuestion()');
+     check(timed.get('diagnosis-panel').innerHTML.includes('data-visit-timing="'+timing+'"')===(ms<endMs), timing+' visibility '+ms);
+     if (ms<endMs) {
+       selectTiming(timing);
+       check(timed.run('getVisitDate().getTime()')===Math.max(ms,startMs), timing+' effective time '+ms);
+     }
+   }
+ }
+ for (const [timing,time] of [['today-lunch','14:30:00'],['today-night','19:00:00'],['today-night','19:30:00']]) {
+   const now='2026-11-09T'+time;
+   timed.setNow(now); selectTiming(timing);
+   check(timed.run('getVisitDate().getTime()')===new Date(now).getTime(), timing+' uses current time '+time);
+   const shop=timing==='today-lunch' ? {hours:'11:00-14:00',closedDays:[]} : {hours:'17:00-19:00',closedDays:[]};
+   check(timed.run('diagnosisShopStatus('+JSON.stringify(shop)+',getVisitDate(),true).status')==='closed', timing+' excludes already closed shop '+time);
+ }
+ timed.setNow('2026-11-09T14:30:00'); selectTiming('today-lunch');
+ timed.run('const lunchCandidates=getDiagnosisCandidates().filter(s=>diagnosisShopStatus(s,getVisitDate(),true).status==="possible"); const closedShopIndex=lunchCandidates.findIndex(s=>s.id===3); Math.random=()=>closedShopIndex<0 ? 0 : (closedShopIndex+0.5)/lunchCandidates.length;');
+ check(timed.run('pickRecommendedRamenShop()?.id!==3'), '14:30 does not recommend shop closed at 14:00');
+ // 選択画面の放置と、回答中の終了時刻越えを検証。
+ timed.setNow('2026-11-09T20:00:00'); selectTiming('today-night');
+ check(timed.run('visitTiming===null') && !timed.get('diagnosis-panel').innerHTML.includes('data-visit-timing="today-night"'), 'stale night option rejected');
+ timed.setNow('2026-11-09T14:59:59'); selectTiming('today-lunch');
+ timed.setNow('2026-11-09T15:00:00');
+ timed.get('diagnosis-panel').fire('click',{target:{closest:selector=>selector==='button[data-answer]' ? {dataset:{answer:'0'}} : null}});
+ check(timed.run('visitTiming===null && diagnosisAnswers.length===0') && !timed.get('diagnosis-panel').innerHTML.includes('data-visit-timing="today-lunch"'), 'expired period during questions restarts timing');
+ check(resultTexts(timed).some(t=>t.includes('選択した時間帯が終了')), 'expiry explanation');
+ timed.setNow('2026-11-09T23:59:59');
+ for (const [timing,hour] of [['tomorrow-lunch',12],['tomorrow-evening',17],['tomorrow-night',19]]) {
+   selectTiming(timing);
+   check(timed.run('getVisitDate().getTime()')===new Date(2026,10,10,hour).getTime(), timing+' unchanged');
+ }
+ selectTiming('tomorrow');
+ check(timed.get('diagnosis-panel').innerHTML.includes('tomorrow-lunch') && timed.get('diagnosis-panel').innerHTML.includes('tomorrow-evening') && timed.get('diagnosis-panel').innerHTML.includes('tomorrow-night'), 'tomorrow timing choices unchanged');
+ selectTiming('later'); check(timed.run('getVisitDate()')===null, 'later remains unspecified date');
+ selectTiming('now'); check(timed.run('getVisitDate().getTime()')===new Date('2026-11-09T23:59:59').getTime(), 'now unchanged');
  console.log('PASS '+checks+' checks (Node VM + DOM stub; not a browser)');
 })().catch(e=>{console.error(e);process.exitCode=1;});
