@@ -4,13 +4,14 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const root = __dirname;
 class Element {
+  style = {};
   constructor() { this.children=[]; this.listeners={}; this.attributes={}; this.textContent=''; this.value='all'; this.hidden=false; this.dataset={}; this.disabled=false; this.classes=new Set(); this.classList={add:x=>this.classes.add(x),remove:x=>this.classes.delete(x),contains:x=>this.classes.has(x),toggle:(x,v)=>v?this.classes.add(x):this.classes.delete(x)}; }
   set className(v) { this._className=v; this.classes=new Set(v.split(' ')); } get className(){return this._className;}
   setAttribute(k,v){this.attributes[k]=v;} appendChild(e){this.children.push(e);return e;} append(...e){this.children.push(...e);} after(){}
   replaceChildren(...e){this.children=e;} addEventListener(k,f){(this.listeners[k]??=[]).push(f);} click(){this.fire('click',{target:this});} fire(k,event={}){for(const f of this.listeners[k]||[]) f(event);}
   querySelector(s){return this.children.find(e=>e.classes.has(s.slice(1)))||null;} animate(){}
 }
-async function boot({stored='[2]', fail=false, blocked=false, pending=false, now=null}={}) {
+async function boot({stored='[2]', fail=false, blocked=false, pending=false, now=null, timers=false}={}) {
  let clockTime = now === null ? null : new Date(now).getTime();
  class TestDate extends Date {
    constructor(...args) { super(...(args.length ? args : [clockTime === null ? Date.now() : clockTime])); }
@@ -21,10 +22,16 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  const doc={getElementById:get,createElement:()=>new Element(),querySelector:s=>get(s),querySelectorAll:s=>get('shops').children.filter(e=>s==='.shop'||s==='.shop.visited'&&e.classes.has('visited'))};
  let resolveFetch; const response={ok:true,json:async()=>({'2026-01-01':'fixture','2026-11-03':'fixture','2025-01-01':'fixture'})};
  const sandbox={document:doc,localStorage:{getItem:k=>{if(blocked)throw Error('blocked');return storage.get(k)??null;},setItem:(k,v)=>{if(blocked)throw Error('blocked');storage.set(k,v);}},fetch:()=>pending?new Promise(r=>resolveFetch=r):fail?Promise.reject(Error('offline')):Promise.resolve(response),AbortController,setTimeout:()=>1,clearTimeout(){},setInterval(){},window:{confirm:()=>true,open:(...a)=>sandbox.opened.push(a)},opened:[],console};
+ const timerQueue=new Map(); let nextTimer=0;
+ if (timers) {
+   sandbox.setTimeout=callback=>{const id=++nextTimer;timerQueue.set(id,callback);return id;};
+   sandbox.clearTimeout=id=>timerQueue.delete(id);
+ }
+ const runTimers=()=>{let count=0;while(timerQueue.size){assert.ok(count++<100,'timer queue terminates');const [id,callback]=timerQueue.entries().next().value;timerQueue.delete(id);callback();}};
  sandbox.Date=TestDate;
  vm.createContext(sandbox); for(const file of ['shops.js','app.js','questions.js','diagnosis.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
  const run=code=>vm.runInContext(code,sandbox); await new Promise(r=>setImmediate(r));
- return {get,run,storage,sandbox,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
+ return {get,run,storage,sandbox,runTimers,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
 }
 (async()=>{
  let checks=0; const check=(v,msg)=>{assert.ok(v,msg);checks++;};
@@ -53,6 +60,7 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  // 坂内の希望があっても、営業状態不明を通常のおすすめにしない。
  const bannaiAnswer = 'diagnosisAnswers.length=0; diagnosisAnswers.push(diagnosisQuestions.find(q=>q.id==="honest-001").options[0]);';
  const normalResultText = '営業時間・定休日をもとにご紹介しています。実際の営業状況と異なる場合があります。';
+ const laterResultText = '来店日時を決めずに、お好みに合うお店をご紹介しています。ご来店前に店舗の営業時間・定休日をご確認ください。';
  const resultTexts = x => x.get('diagnosis-panel').children.map(e=>e.textContent);
  for (const scenario of [
    {name:'failed holidays', options:{fail:true}, state:'failed', date:'2026-11-09T12:00:00'},
@@ -82,7 +90,7 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
    check(closed ? texts.includes('指定日時は定休日または営業時間外です。') && known.get('diagnosis-panel').children.filter(e=>e.dataset.diagnosisAlternative).length===3 : texts.includes(normalResultText), 'known Bannai result '+date);
  }
  known.run('visitTiming="later"; getVisitDate=()=>null; showDiagnosisResult(pickRecommendedRamenShop());');
- check(resultTexts(known).includes(normalResultText), 'unspecified future date keeps existing guidance');
+ check(resultTexts(known).includes(laterResultText) && !resultTexts(known).includes(normalResultText), 'unspecified future date uses undated guidance');
  // 今日の時間帯は開始前なら予定時刻、途中なら現在時刻を使う。
  const timed=await boot({now:'2026-11-09T14:30:00'});
  const selectTiming = timing => timed.get('diagnosis-panel').fire('click', {target:{closest:selector=>selector==='button[data-visit-timing]' ? {dataset:{visitTiming:timing}} : null}});
@@ -157,5 +165,44 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
      select('later'); check(x.run('selectedTodayPeriod===null && getVisitDate()===null'), 'later unchanged after rollover '+timing+' '+day);
    }
  }
+ // 幸楽苑だけを診断から除外し、ルーレットの95個の等幅区間は維持。
+ const saved69=JSON.stringify([...Array.from({length:67},(_,i)=>i+1),92,93]);
+ const policy=await boot({stored:saved69,now:'2026-11-09T12:00:00',timers:true});
+ const allIds=Array.from({length:95},(_,i)=>i+1);
+ const expectedDiagnosisIds=allIds.filter(id=>id!==92 && id!==93);
+ check(JSON.stringify(policy.run('getDiagnosisCandidates().map(s=>s.id)'))===JSON.stringify(expectedDiagnosisIds), 'diagnosis excludes exactly IDs 92 and 93');
+ check(JSON.stringify(policy.run('getRouletteCandidates().map(s=>s.id)'))===JSON.stringify(allIds), 'roulette retains all IDs in original order');
+ policy.run('visitTiming="later";');
+ const selectedIds=expectedDiagnosisIds.map((id,index)=>{policy.run('Math.random=()=>'+((index+0.5)/93));return policy.run('pickRecommendedRamenShop().id');});
+ check(JSON.stringify(selectedIds)===JSON.stringify(expectedDiagnosisIds), 'later can select every other shop and neither Korakuen');
+ policy.run('visitTiming="now";');
+ check(policy.run('getDiagnosisCandidates().filter(s=>diagnosisShopStatus(s,getVisitDate(),true).status==="possible").every(s=>s.id!==92 && s.id!==93)'), 'dated diagnosis excludes Korakuen');
+ for (const shopId of [1,14,95]) {
+   policy.run('visitTiming="later"; showDiagnosisResult(shopData.find(s=>s.id==='+shopId+'));');
+   check(resultTexts(policy).includes(laterResultText) && !resultTexts(policy).includes(normalResultText), 'undated guidance for shop '+shopId);
+ }
+ policy.run('visitTiming="now"; showDiagnosisResult(shopData[1]);');
+ check(resultTexts(policy).includes(normalResultText) && !resultTexts(policy).includes(laterResultText), 'dated guidance unchanged');
+ const korakuenNote='喜多方で、あえての幸楽苑！いつもの味を楽しむのも、今日の運しだい。';
+ for (let index=0;index<95;index++) {
+   policy.run('Math.random=()=>'+((index+0.5)/95));
+   check(policy.run('pickRandomRamenShop().id')===index+1, 'roulette equal interval selects ID '+(index+1));
+   policy.get('start-roulette').click();
+   check(!resultTexts(policy).includes(korakuenNote), 'roulette note waits for final result '+(index+1));
+   policy.runTimers();
+   const texts=resultTexts(policy);
+   check(texts.some(t=>t==='🎉 本日の運命のお店は… '+policy.run('shopData['+index+'].name')+'！'), 'roulette completes with selected ID '+(index+1));
+   check(texts.filter(t=>t===korakuenNote).length===([92,93].includes(index+1)?1:0), 'roulette note only for Korakuen '+(index+1));
+   check(!policy.get('start-roulette').disabled, 'roulette can run again '+(index+1));
+ }
+ check(policy.get('shops').children.length===95 && policy.run('visited.length')===69 && policy.storage.get('kitakata-ramen-visited-v1')===saved69, '95 cards and saved 69 visits untouched');
+ policy.get('shop-search').value='幸楽苑'; policy.get('shop-search').fire('input');
+ check(policy.get('shops').children.filter(e=>!e.hidden).length===2, 'Korakuen remains searchable');
+ for (const id of [92,93]) {
+   const card=policy.get('shops').children[id-1];
+   check(card.classes.has('visited'), 'Korakuen visited ID retained '+id);
+   card.querySelector('.map-button').fire('click',{stopPropagation(){}});
+ }
+ check(policy.sandbox.opened.length===2 && policy.storage.get('kitakata-ramen-visited-v1')===saved69, 'both Korakuen maps open without changing saved visits');
  console.log('PASS '+checks+' checks (Node VM + DOM stub; not a browser)');
 })().catch(e=>{console.error(e);process.exitCode=1;});

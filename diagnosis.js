@@ -12,6 +12,7 @@ const previousQuestionKey = "kitakata-ramen-previous-questions";
 
 let visitTiming = null;
 let selectedTodayPeriod = null;
+const korakuenShopIds = new Set([92, 93]);
 const HOURS_NOTICE_TEXT = "営業時間・定休日は、Googleマップの記載や現地確認など、独自調査で得た情報をもとにしています。情報に誤りがある場合や、調査後に変更されている場合があります。また、臨時休業や材料切れによる早仕舞いなど、実際の営業状況とは異なることがあります。ご来店前に店舗の最新情報をご確認ください。";
 function appendHoursNotice() {
   const notice = document.createElement("p");
@@ -193,7 +194,7 @@ const diagnosisRelatedNames = ["ラーメンうめ八", "香福"];
 function showDiagnosisAlternatives(kind) {
   const date = getVisitDate();
   const names = kind === "nearby" ? diagnosisNearbyNames : diagnosisRelatedNames;
-  const matches = names.map((name) => shopData.find((shop) => shop.name === name)).filter(Boolean);
+  const matches = names.map((name) => shopData.find((shop) => shop.name === name)).filter(shop => shop && !korakuenShopIds.has(shop.id));
 const checked = matches.map((shop) => ({ shop, info: diagnosisShopStatus(shop, date, visitTiming === "now" || visitTiming?.startsWith("today-") || visitTiming?.startsWith("tomorrow-")) }));  const unknown = checked.filter(({ info }) => info.status === "unknown");
   const available = checked.filter(({ info }) => info.status === "possible");
   const closed = checked.filter(({ info }) => info.status === "closed");
@@ -290,7 +291,11 @@ diagnosisPanel.append(p1);
       diagnosisPanel.append(button);
     });
   } else {
-const p = document.createElement("p"); p.textContent = "営業時間・定休日をもとにご紹介しています。実際の営業状況と異なる場合があります。"; diagnosisPanel.append(p);  }
+const p = document.createElement("p");
+p.textContent = visitTiming === "later"
+  ? "来店日時を決めずに、お好みに合うお店をご紹介しています。ご来店前に店舗の営業時間・定休日をご確認ください。"
+  : "営業時間・定休日をもとにご紹介しています。実際の営業状況と異なる場合があります。";
+diagnosisPanel.append(p);  }
 }
 
 diagnosisPanel.addEventListener("click", (event) => {
@@ -345,14 +350,17 @@ if (bannaiStatus.status === "closed") {
   diagnosisPanel.querySelector("#bannai-date-result")?.remove();
   diagnosisPanel.append(result);
 });
-function getDiagnosisCandidates() {
+function getRouletteCandidates() {
   // 既存の95店舗データから候補を取得
   return shopData.filter((shop) => shop && shop.name);
 }
 
+function getDiagnosisCandidates() {
+  return getRouletteCandidates().filter(shop => !korakuenShopIds.has(shop.id));
+}
 
 function pickRandomRamenShop() {
-  const candidates = getDiagnosisCandidates();
+  const candidates = getRouletteCandidates();
 
   if (candidates.length === 0) {
     return null;
@@ -467,7 +475,7 @@ function showRandomRamenResult() {
   const result = document.createElement("p");
   result.textContent = `あなたに選ばれたお店は「${shop.name}」です！`;
   
-  const candidates = getDiagnosisCandidates();
+  const candidates = getRouletteCandidates();
   let spinCount = 0;
 
   const spinTimer = setTimeout(function spin() {
@@ -485,6 +493,11 @@ function showRandomRamenResult() {
   
       
       result.textContent = `🎉 本日の運命のお店は… ${shop.name}！`;
+      if (korakuenShopIds.has(shop.id)) {
+        const note = document.createElement("p");
+        note.textContent = "喜多方で、あえての幸楽苑！いつもの味を楽しむのも、今日の運しだい。";
+        diagnosisPanel.append(note);
+      }
       result.style.fontSize = "1.6rem";
       result.style.fontWeight = "bold";
       result.style.textAlign = "center";
