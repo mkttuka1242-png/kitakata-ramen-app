@@ -5,6 +5,8 @@ const path = require('node:path');
 const root = __dirname;
 class Element {
   style = {};
+  set innerHTML(value) { this._innerHTML=value; this.children=[]; }
+  get innerHTML() { return this._innerHTML || ''; }
   constructor() { this.children=[]; this.listeners={}; this.attributes={}; this.textContent=''; this.value='all'; this.hidden=false; this.dataset={}; this.disabled=false; this.classes=new Set(); this.classList={add:x=>this.classes.add(x),remove:x=>this.classes.delete(x),contains:x=>this.classes.has(x),toggle:(x,v)=>v?this.classes.add(x):this.classes.delete(x)}; }
   set className(v) { this._className=v; this.classes=new Set(v.split(' ')); } get className(){return this._className;}
   setAttribute(k,v){this.attributes[k]=v;} appendChild(e){this.children.push(e);return e;} append(...e){this.children.push(...e);} after(){}
@@ -31,7 +33,8 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  sandbox.Date=TestDate;
  vm.createContext(sandbox); for(const file of ['shops.js','app.js','questions.js','diagnosis.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
  const run=code=>vm.runInContext(code,sandbox); await new Promise(r=>setImmediate(r));
- return {get,run,storage,sandbox,runTimers,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
+ const takeNextTimer=()=>{const entry=timerQueue.entries().next().value;if(!entry)return null;const [id,callback]=entry;timerQueue.delete(id);return callback;};
+ return {get,run,storage,sandbox,runTimers,takeNextTimer,pendingTimers:()=>timerQueue.size,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
 }
 (async()=>{
  let checks=0; const check=(v,msg)=>{assert.ok(v,msg);checks++;};
@@ -204,5 +207,50 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
    card.querySelector('.map-button').fire('click',{stopPropagation(){}});
  }
  check(policy.sandbox.opened.length===2 && policy.storage.get('kitakata-ramen-visited-v1')===saved69, 'both Korakuen maps open without changing saved visits');
+ // 画面切替と再抽選で、取り消し済み・実行待ちの古い処理を無効化。
+ const panelSnapshot=x=>JSON.stringify({html:x.get('diagnosis-panel').innerHTML,texts:resultTexts(x)});
+ for (const id of [92,93,2]) {
+   for (const phase of ['before-first-spin','mid-spin','before-final-spin']) {
+     const x=await boot({now:'2026-11-09T12:00:00',timers:true});
+     x.run('let soundCount=0; playPokoSound=()=>soundCount++; Math.random=()=>'+((id-1+0.5)/95));
+     x.get('start-roulette').click();
+     const spins=phase==='before-first-spin'?0:phase==='mid-spin'?7:14;
+     for(let i=0;i<spins;i++) x.takeNextTimer()();
+     const staleCallback=x.takeNextTimer();
+     const oldResult=x.get('diagnosis-panel').children.at(-1);
+     const oldText=oldResult.textContent;
+     x.get('start-diagnosis').click();
+     const snapshot=panelSnapshot(x);
+     staleCallback(); x.runTimers();
+     check(panelSnapshot(x)===snapshot && oldResult.textContent===oldText, 'cancelled roulette cannot write to diagnosis '+id+' '+phase);
+     check(x.pendingTimers()===0 && x.run('soundCount')===0 && !x.get('start-roulette').disabled, 'cancelled roulette stops timers and sound and restores button '+id+' '+phase);
+     // 新しい診断結果を表示しても古い処理が侵入しない。
+     x.run('visitTiming="later"; showDiagnosisResult(shopData[1]);');
+     const resultSnapshot=panelSnapshot(x); staleCallback();
+     check(panelSnapshot(x)===resultSnapshot && !resultTexts(x).includes(korakuenNote), 'old roulette cannot append note to new result '+id+' '+phase);
+   }
+ }
+ const repeated=await boot({now:'2026-11-09T12:00:00',timers:true});
+ repeated.run('let soundCount=0; playPokoSound=()=>soundCount++;');
+ const staleCallbacks=[];
+ for (const id of [92,93,2,92]) {
+   repeated.run('Math.random=()=>'+((id-1+0.5)/95));
+   // DOMスタブではdisabled中のクリックも配送し、連続開始に対する防御も確認。
+   repeated.get('start-roulette').click();
+   staleCallbacks.push(repeated.takeNextTimer());
+ }
+ repeated.run('Math.random=()=>1.5/95;'); repeated.get('start-roulette').click();
+ const repeatedSnapshot=panelSnapshot(repeated);
+ for(const callback of staleCallbacks) callback();
+ check(panelSnapshot(repeated)===repeatedSnapshot && repeated.pendingTimers()===1 && repeated.get('start-roulette').disabled, 'rapid starts leave only newest roulette active');
+ repeated.runTimers();
+ check(resultTexts(repeated).some(t=>t==='🎉 本日の運命のお店は… ラーメン一平！') && !resultTexts(repeated).includes(korakuenNote) && repeated.run('soundCount')===1, 'rapid starts complete only latest result and sound');
+ for (const id of [92,93,2]) {
+   repeated.run('Math.random=()=>'+((id-1+0.5)/95)); repeated.get('start-roulette').click(); repeated.runTimers();
+   check(resultTexts(repeated).filter(t=>t===korakuenNote).length===([92,93].includes(id)?1:0) && repeated.pendingTimers()===0 && !repeated.get('start-roulette').disabled, 'redraw after completion has no stale note '+id);
+ }
+ // 実際にキュー内にあるタイマーもclearTimeoutで除去される。
+ repeated.get('start-roulette').click(); repeated.get('start-diagnosis').click();
+ check(repeated.pendingTimers()===0, 'screen switch clears queued timer');
  console.log('PASS '+checks+' checks (Node VM + DOM stub; not a browser)');
 })().catch(e=>{console.error(e);process.exitCode=1;});

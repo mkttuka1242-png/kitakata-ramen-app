@@ -13,6 +13,15 @@ const previousQuestionKey = "kitakata-ramen-previous-questions";
 let visitTiming = null;
 let selectedTodayPeriod = null;
 const korakuenShopIds = new Set([92, 93]);
+let rouletteTimer = null;
+let rouletteGeneration = 0;
+
+function cancelRoulette() {
+  rouletteGeneration++;
+  if (rouletteTimer !== null) clearTimeout(rouletteTimer);
+  rouletteTimer = null;
+  rouletteButton.disabled = false;
+}
 const HOURS_NOTICE_TEXT = "営業時間・定休日は、Googleマップの記載や現地確認など、独自調査で得た情報をもとにしています。情報に誤りがある場合や、調査後に変更されている場合があります。また、臨時休業や材料切れによる早仕舞いなど、実際の営業状況とは異なることがあります。ご来店前に店舗の最新情報をご確認ください。";
 function appendHoursNotice() {
   const notice = document.createElement("p");
@@ -30,6 +39,7 @@ const todayVisitPeriods = {
 };
 
 function showVisitTimingQuestion() {
+  cancelRoulette();
   selectedTodayPeriod = null;
   const hour = new Date().getHours();
 
@@ -103,6 +113,7 @@ return result;
 
 
 function showDiagnosisQuestion() {
+  cancelRoulette();
   const item = selectedQuestions[currentQuestion];
 
   diagnosisPanel.hidden = false;
@@ -143,6 +154,7 @@ diagnosisPanel.addEventListener("click", (event) => {
   if (!ensureVisitTimingAvailable()) return;
 
   if (visitTiming === "tomorrow") {
+    cancelRoulette();
     diagnosisPanel.innerHTML = `
       <h2>🍜 明日はいつ食べに行きますか？</h2>
       <button type="button" data-visit-timing="tomorrow-lunch">☀️ 昼（12時）</button>
@@ -192,6 +204,7 @@ const diagnosisNearbyNames = ["食堂 松", "喜多方ラーメン専門店 喜�
 const diagnosisRelatedNames = ["ラーメンうめ八", "香福"];
 
 function showDiagnosisAlternatives(kind) {
+  cancelRoulette();
   const date = getVisitDate();
   const names = kind === "nearby" ? diagnosisNearbyNames : diagnosisRelatedNames;
   const matches = names.map((name) => shopData.find((shop) => shop.name === name)).filter(shop => shop && !korakuenShopIds.has(shop.id));
@@ -236,6 +249,7 @@ const checked = matches.map((shop) => ({ shop, info: diagnosisShopStatus(shop, d
 
 let lastDiagnosisShop = null;
 function showDiagnosisResult(shop) {
+  cancelRoulette();
   lastDiagnosisShop = shop;
   diagnosisPanel.replaceChildren();
   appendHoursNotice();
@@ -302,6 +316,7 @@ diagnosisPanel.addEventListener("click", (event) => {
   const alternative = event.target.closest("button[data-diagnosis-alternative]");
   if (alternative) {
    if (alternative.dataset.diagnosisAlternative === "later") {
+  cancelRoulette();
   diagnosisPanel.innerHTML = `
     <h2>📅 坂内食堂への訪問日を選ぶ</h2>
     <p>訪問予定日を選択してください。</p>
@@ -453,7 +468,8 @@ return {
 }
 
 function showRandomRamenResult() {
-  
+  cancelRoulette();
+  const generation = rouletteGeneration;
   rouletteButton.disabled = true;
 
   const shop = pickRandomRamenShop();
@@ -478,14 +494,16 @@ function showRandomRamenResult() {
   const candidates = getRouletteCandidates();
   let spinCount = 0;
 
-  const spinTimer = setTimeout(function spin() {
+  rouletteTimer = setTimeout(function spin() {
+    if (generation !== rouletteGeneration) return;
+    rouletteTimer = null;
     const randomIndex = Math.floor(Math.random() * candidates.length);
     result.textContent = `🍜 ${candidates[randomIndex].name}`;
     spinCount++;
     
     if (spinCount < 15) {
       const nextDelay = 100 + spinCount * 25;
-      setTimeout(spin, nextDelay);
+      rouletteTimer = setTimeout(spin, nextDelay);
     }
 
 
