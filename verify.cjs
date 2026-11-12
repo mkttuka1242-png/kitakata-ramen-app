@@ -44,5 +44,38 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false}={})
  check(b.run('pickRandomRamenShop().id>=1'),'roulette selection');
  b.run('visitTiming = "now"; showDiagnosisAlternatives("nearby")');check(b.get('diagnosis-panel').children.length>2,'nearby alternatives');
  b.run('showDiagnosisAlternatives("related")');check(b.get('diagnosis-panel').children.length>2,'related alternatives'); for(const id of ['share-x','share-x-top','share-facebook-top','share-threads-top']) b.get(id).click();check(b.sandbox.opened.length===4,'all share buttons');
+ // 坂内の希望があっても、営業状態不明を通常のおすすめにしない。
+ const bannaiAnswer = 'diagnosisAnswers.length=0; diagnosisAnswers.push(diagnosisQuestions.find(q=>q.id==="honest-001").options[0]);';
+ const normalResultText = '営業時間・定休日をもとにご紹介しています。実際の営業状況と異なる場合があります。';
+ const resultTexts = x => x.get('diagnosis-panel').children.map(e=>e.textContent);
+ for (const scenario of [
+   {name:'failed holidays', options:{fail:true}, state:'failed', date:'2026-11-09T12:00:00'},
+   {name:'pending holidays', options:{pending:true}, state:'loading', date:'2026-11-09T12:00:00'},
+   {name:'missing holiday year', options:{}, state:'ready', date:'2030-11-09T12:00:00'},
+ ]) {
+   const x=await boot(scenario.options);
+   x.run(bannaiAnswer + 'visitTiming="today-lunch"; getVisitDate=()=>new Date('+JSON.stringify(scenario.date)+');');
+   check(x.run('holidayState')===scenario.state, scenario.name+' state');
+   check(x.run('diagnosisShopStatus(shopData[13],getVisitDate(),true).status')==='unknown', scenario.name+' unknown fixture');
+   x.run('showDiagnosisResult(pickRecommendedRamenShop())');
+   const texts=resultTexts(x);
+   check(texts.some(t=>t.includes('坂内食堂')), scenario.name+' retains requested shop');
+   check(texts.some(t=>t.startsWith('判定できません。') && t.includes('営業状況を確認できない')), scenario.name+' explicit unknown notice');
+   check(!texts.includes(normalResultText) && !texts.some(t=>t.includes('やっぱり坂内でしたね')), scenario.name+' no normal recommendation');
+   x.get('diagnosis-panel').children.find(e=>e.listeners.click?.length).click();
+   check(x.run('visitTiming===null && diagnosisAnswers.length===0') && x.get('diagnosis-panel').innerHTML.includes('data-visit-timing'), scenario.name+' retry');
+   if (scenario.options.pending) await x.finish();
+ }
+ const known=await boot();
+ known.run(bannaiAnswer + 'visitTiming="today-lunch";');
+ for (const [date, closed] of [['2026-11-09T12:00:00',false], ['2026-11-09T19:00:00',true], ['2026-11-12T12:00:00',true]]) {
+   known.run('getVisitDate=()=>new Date('+JSON.stringify(date)+');');
+   check(known.run('pickRecommendedRamenShop().id===14 && !pickRecommendedRamenShop().diagnosisUnknown && pickRecommendedRamenShop().diagnosisClosed==='+closed), 'known Bannai state '+date);
+   known.run('showDiagnosisResult(pickRecommendedRamenShop())');
+   const texts=resultTexts(known);
+   check(closed ? texts.includes('指定日時は定休日または営業時間外です。') && known.get('diagnosis-panel').children.filter(e=>e.dataset.diagnosisAlternative).length===3 : texts.includes(normalResultText), 'known Bannai result '+date);
+ }
+ known.run('visitTiming="later"; getVisitDate=()=>null; showDiagnosisResult(pickRecommendedRamenShop());');
+ check(resultTexts(known).includes(normalResultText), 'unspecified future date keeps existing guidance');
  console.log('PASS '+checks+' checks (Node VM + DOM stub; not a browser)');
 })().catch(e=>{console.error(e);process.exitCode=1;});

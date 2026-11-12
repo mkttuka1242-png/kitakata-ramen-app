@@ -221,6 +221,23 @@ if (!shop) {
   diagnosisPanel.append(message, retryButton);
   return;
 }  
+if (shop.diagnosisUnknown) {
+  const heading = document.createElement("h2");
+  heading.textContent = shop.name + "の営業状況";
+  const message = document.createElement("p");
+  message.setAttribute("role", "status");
+  message.textContent = "判定できません。指定日時の営業状況を確認できないため、通常のおすすめとしてはご案内できません。ご来店前に店舗の最新情報をご確認ください。";
+  const retryButton = document.createElement("button");
+  retryButton.type = "button";
+  retryButton.textContent = "🔄 日時を選び直す";
+  retryButton.addEventListener("click", () => {
+    visitTiming = null;
+    diagnosisAnswers.length = 0;
+    showVisitTimingQuestion();
+  });
+  diagnosisPanel.append(heading, message, retryButton);
+  return;
+}
 const heading = document.createElement("h2"); heading.textContent = shop.name.includes("坂内") && diagnosisAnswers.includes("はい、バレました😂") ? "🍜 やっぱり坂内でしたね！（笑）" : 
 visitTiming?.startsWith("tomorrow")
   ? "🍜 明日の一杯はこちらのお店で！"
@@ -368,12 +385,11 @@ const banNaiClosed = isBanNaiClosedOnVisitDate();
       (shop) => shop.name.includes("坂内") || shop.name.includes("ばんない")
     );
     if (banNai) {
+const status = visitDate ? diagnosisShopStatus(banNai, visitDate, true).status : null;
 return {
   ...banNai,
-  diagnosisClosed:
-    banNaiClosed ||
-    (getVisitDate() !== null &&
-      diagnosisShopStatus(banNai, getVisitDate(), true).status === "closed"),
+  diagnosisUnknown: status === "unknown",
+  diagnosisClosed: banNaiClosed || status === "closed",
 };}
   }
 
