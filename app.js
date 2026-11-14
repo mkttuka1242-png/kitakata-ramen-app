@@ -1,3 +1,6 @@
+function trackUsage(name) {
+  try { window.ramenAnalytics?.track(name); } catch (_) { /* 計測は既存機能から独立 */ }
+}
 const storageNotice = document.createElement("p");
 storageNotice.setAttribute("role", "status");
 document.querySelector(".summary").after(storageNotice);
@@ -49,11 +52,13 @@ const filterOpenButton = document.getElementById("filter-open");
         visited = visited.filter((visitedId) => visitedId !== id);
         button.classList.remove("visited");
         button.setAttribute("aria-pressed", "false");
+        trackUsage('visit_remove');
       } else {
         visited.push(id);
         visited.sort((a, b) => a - b);
         button.classList.add("visited");
         button.setAttribute("aria-pressed", "true");
+        trackUsage('visit_add');
       }
 
       saveVisited();
@@ -180,6 +185,7 @@ button.appendChild(status);
  mapButton.className = "map-button";
  mapButton.addEventListener("click", (event) => {
   event.stopPropagation();
+  trackUsage('map_click');
   window.open(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`, "_blank");
 });
 button.appendChild(mapButton); 
@@ -222,6 +228,7 @@ const shareXButton = document.getElementById("share-x");
 const shareXTopButton = document.getElementById("share-x-top");
 
 shareXButton.addEventListener("click", () => {
+ trackUsage('share_x_click');
  const text = `🍜 喜多方ラーメン巡り\n現在${visited.length}/${shopData.length}店を訪問しました！\n制覇率${Math.round((visited.length / shopData.length) * 100)}%\n「喜多方ラーメン９５」\n#喜多方ラーメン\nhttps://kitakataramen.aizu.blog/`;
  const xUrl = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
  window.open(xUrl, "_blank");
@@ -275,6 +282,7 @@ filterUnvisitedButton.addEventListener("click", () => {
 const facebookShareTop = document.getElementById("share-facebook-top");
 
 facebookShareTop.addEventListener("click", () => {
+trackUsage('share_facebook_click');
 const shareUrl = "https://kitakataramen.aizu.blog/";
 const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
 window.open(facebookUrl, "_blank", "noopener,noreferrer");
@@ -283,6 +291,7 @@ window.open(facebookUrl, "_blank", "noopener,noreferrer");
 const threadsShareTop = document.getElementById("share-threads-top");
 
 threadsShareTop.addEventListener("click", () => {
+  trackUsage('share_threads_click');
   const shareUrl = "https://kitakataramen.aizu.blog/";
   const done = visited.length;
   const percent = Math.round((done / shopData.length) * 100);

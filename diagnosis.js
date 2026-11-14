@@ -127,6 +127,7 @@ function showDiagnosisQuestion() {
 }
 
 diagnosisButton.addEventListener("click", () => {
+  trackUsage('diagnosis_start');
   currentQuestion = 0;
   visitTiming = null;
   diagnosisAnswers.length = 0;
@@ -179,7 +180,7 @@ diagnosisPanel.addEventListener("click", (event) => {
   const selectedIndex = Number(button.dataset.answer);
   diagnosisAnswers.push(selectedQuestions[currentQuestion].options[selectedIndex]);
   if (diagnosisAnswers.includes("はい、バレました😂")) {
-  showDiagnosisResult(pickRecommendedRamenShop());
+  finishDiagnosis(pickRecommendedRamenShop());
   return;
 }
   currentQuestion++;
@@ -190,7 +191,7 @@ diagnosisPanel.addEventListener("click", (event) => {
 
 const shop = pickRecommendedRamenShop();
 
-showDiagnosisResult(shop);
+finishDiagnosis(shop);
 
   }
 });
@@ -248,6 +249,10 @@ const checked = matches.map((shop) => ({ shop, info: diagnosisShopStatus(shop, d
 }
 
 let lastDiagnosisShop = null;
+function finishDiagnosis(shop) {
+  showDiagnosisResult(shop);
+  trackUsage('diagnosis_result');
+}
 function showDiagnosisResult(shop) {
   cancelRoulette();
   lastDiagnosisShop = shop;
@@ -261,6 +266,7 @@ if (!shop) {
   retryButton.type = "button";
   retryButton.textContent = "🔄 日時を選び直す";
   retryButton.addEventListener("click", () => {
+    trackUsage('diagnosis_start');
     visitTiming = null;
     diagnosisAnswers.length = 0;
     showVisitTimingQuestion();
@@ -279,6 +285,7 @@ if (shop.diagnosisUnknown) {
   retryButton.type = "button";
   retryButton.textContent = "🔄 日時を選び直す";
   retryButton.addEventListener("click", () => {
+    trackUsage('diagnosis_start');
     visitTiming = null;
     diagnosisAnswers.length = 0;
     showVisitTimingQuestion();
@@ -469,6 +476,7 @@ return {
 
 function showRandomRamenResult() {
   cancelRoulette();
+  trackUsage('roulette_start');
   const generation = rouletteGeneration;
   rouletteButton.disabled = true;
 
@@ -511,6 +519,7 @@ function showRandomRamenResult() {
   
       
       result.textContent = `🎉 本日の運命のお店は… ${shop.name}！`;
+      trackUsage('roulette_result');
       if (korakuenShopIds.has(shop.id)) {
         const note = document.createElement("p");
         note.textContent = "喜多方で、あえての幸楽苑！いつもの味を楽しむのも、今日の運しだい。";

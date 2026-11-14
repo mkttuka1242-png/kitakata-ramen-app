@@ -13,7 +13,7 @@ class Element {
   replaceChildren(...e){this.children=e;} addEventListener(k,f){(this.listeners[k]??=[]).push(f);} click(){this.fire('click',{target:this});} fire(k,event={}){for(const f of this.listeners[k]||[]) f(event);}
   querySelector(s){return this.children.find(e=>e.classes.has(s.slice(1)))||null;} animate(){}
 }
-async function boot({stored='[2]', fail=false, blocked=false, pending=false, now=null, timers=false}={}) {
+async function boot({stored='[2]', fail=false, blocked=false, pending=false, now=null, timers=false, analytics='capture'}={}) {
  let clockTime = now === null ? null : new Date(now).getTime();
  class TestDate extends Date {
    constructor(...args) { super(...(args.length ? args : [clockTime === null ? Date.now() : clockTime])); }
@@ -24,6 +24,9 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  const doc={getElementById:get,createElement:()=>new Element(),querySelector:s=>get(s),querySelectorAll:s=>get('shops').children.filter(e=>s==='.shop'||s==='.shop.visited'&&e.classes.has('visited'))};
  let resolveFetch; const response={ok:true,json:async()=>({'2026-01-01':'fixture','2026-11-03':'fixture','2025-01-01':'fixture'})};
  const sandbox={document:doc,localStorage:{getItem:k=>{if(blocked)throw Error('blocked');return storage.get(k)??null;},setItem:(k,v)=>{if(blocked)throw Error('blocked');storage.set(k,v);}},fetch:()=>pending?new Promise(r=>resolveFetch=r):fail?Promise.reject(Error('offline')):Promise.resolve(response),AbortController,setTimeout:()=>1,clearTimeout(){},setInterval(){},window:{confirm:()=>true,open:(...a)=>sandbox.opened.push(a)},opened:[],console};
+ const analyticsEvents=[];
+ if (analytics==='capture') sandbox.window.ramenAnalytics={track:(...args)=>analyticsEvents.push(args)};
+ if (analytics==='throw') sandbox.window.ramenAnalytics={track:()=>{throw Error('analytics blocked');}};
  const timerQueue=new Map(); let nextTimer=0;
  if (timers) {
    sandbox.setTimeout=callback=>{const id=++nextTimer;timerQueue.set(id,callback);return id;};
@@ -34,9 +37,9 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  vm.createContext(sandbox); for(const file of ['shops.js','app.js','questions.js','diagnosis.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
  const run=code=>vm.runInContext(code,sandbox); await new Promise(r=>setImmediate(r));
  const takeNextTimer=()=>{const entry=timerQueue.entries().next().value;if(!entry)return null;const [id,callback]=entry;timerQueue.delete(id);return callback;};
- return {get,run,storage,sandbox,runTimers,takeNextTimer,pendingTimers:()=>timerQueue.size,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
+ return {get,run,storage,sandbox,analyticsEvents,runTimers,takeNextTimer,pendingTimers:()=>timerQueue.size,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
 }
-(async()=>{
+if (require.main === module) (async()=>{
  let checks=0; const check=(v,msg)=>{assert.ok(v,msg);checks++;};
  const b=await boot(); check(b.get('shops').children.length===95,'95 cards'); check(b.run('visited.includes(2)'),'existing record');
  b.get('filter-visited').click(); check(b.get('result-count').textContent==='表示中 1店','visited filter'); b.get('shops').children[1].click(); check(b.get('result-count').textContent==='表示中 0店','toggle refresh');
@@ -254,3 +257,4 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  check(repeated.pendingTimers()===0, 'screen switch clears queued timer');
  console.log('PASS '+checks+' checks (Node VM + DOM stub; not a browser)');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+module.exports = { boot };
