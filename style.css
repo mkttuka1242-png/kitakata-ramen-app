@@ -442,6 +442,9 @@ cursor: pointer;
 /* 状態表示と注意書きを狭い画面でも折り返す */
 .open-status { display: block; padding: 4px 6px; font-size: 0.85rem; line-height: 1.5; overflow-wrap: anywhere; }
 .hours-disclaimer { font-size: 0.9rem; line-height: 1.7; overflow-wrap: anywhere; }
+.diagnosis-later-row { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; vertical-align: middle; }
+.diagnosis-later-row > button { flex: 0 0 auto; }
+.diagnosis-dawn-note { min-width: 0; color: #555; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; text-align: left; }
 .filters button { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 
 @media (max-width: 600px) {

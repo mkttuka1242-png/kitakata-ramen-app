@@ -39,6 +39,7 @@ const todayVisitPeriods = {
 };
 
 function showVisitTimingQuestion() {
+  window.ramenDawnNote?.unmount();
   cancelRoulette();
   selectedTodayPeriod = null;
   const hour = new Date().getHours();
@@ -51,8 +52,12 @@ function showVisitTimingQuestion() {
     ${hour < todayVisitPeriods["today-evening"].end ? '<button type="button" data-visit-timing="today-evening">🌆 今日の夕方</button>' : ''}
     ${hour < todayVisitPeriods["today-night"].end ? '<button type="button" data-visit-timing="today-night">🌙 今日の夜</button>' : ''}
     <button type="button" data-visit-timing="tomorrow">明日</button>
-    <button type="button" data-visit-timing="later">別の日</button>
+    <span class="diagnosis-later-row">
+      <button type="button" data-visit-timing="later">別の日</button>
+      <span id="diagnosis-dawn-note" class="diagnosis-dawn-note" role="status" aria-live="polite" aria-atomic="true" hidden></span>
+    </span>
   `;
+  window.ramenDawnNote?.mount(document.getElementById('diagnosis-dawn-note'));
 }
 
 function ensureVisitTimingAvailable() {
@@ -113,6 +118,7 @@ return result;
 
 
 function showDiagnosisQuestion() {
+  window.ramenDawnNote?.unmount();
   cancelRoulette();
   const item = selectedQuestions[currentQuestion];
 
@@ -155,6 +161,7 @@ diagnosisPanel.addEventListener("click", (event) => {
   if (!ensureVisitTimingAvailable()) return;
 
   if (visitTiming === "tomorrow") {
+    window.ramenDawnNote?.unmount();
     cancelRoulette();
     diagnosisPanel.innerHTML = `
       <h2>🍜 明日はいつ食べに行きますか？</h2>
@@ -205,6 +212,7 @@ const diagnosisNearbyNames = ["食堂 松", "喜多方ラーメン専門店 喜�
 const diagnosisRelatedNames = ["ラーメンうめ八", "香福"];
 
 function showDiagnosisAlternatives(kind) {
+  window.ramenDawnNote?.unmount();
   cancelRoulette();
   const date = getVisitDate();
   const names = kind === "nearby" ? diagnosisNearbyNames : diagnosisRelatedNames;
@@ -254,6 +262,7 @@ function finishDiagnosis(shop) {
   trackUsage('diagnosis_result');
 }
 function showDiagnosisResult(shop) {
+  window.ramenDawnNote?.unmount();
   cancelRoulette();
   lastDiagnosisShop = shop;
   diagnosisPanel.replaceChildren();
@@ -323,6 +332,7 @@ diagnosisPanel.addEventListener("click", (event) => {
   const alternative = event.target.closest("button[data-diagnosis-alternative]");
   if (alternative) {
    if (alternative.dataset.diagnosisAlternative === "later") {
+  window.ramenDawnNote?.unmount();
   cancelRoulette();
   diagnosisPanel.innerHTML = `
     <h2>📅 坂内食堂への訪問日を選ぶ</h2>
@@ -475,6 +485,7 @@ return {
 }
 
 function showRandomRamenResult() {
+  window.ramenDawnNote?.unmount();
   cancelRoulette();
   trackUsage('roulette_start');
   const generation = rouletteGeneration;
