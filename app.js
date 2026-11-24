@@ -106,7 +106,9 @@ function hoursMatch(hours, minutes, previousDay = false) {
     return end <= start ? minutes >= start : minutes >= start && minutes < end;
   });
 }
-function shopHoursStatus(shop, date, checkTime = true, requireClosedDays = false) {
+function shopHoursStatus(shop, date, checkTime = true, requireClosedDays = false, closureDate = date) {
+  const closure = getShopClosure(shop.id, closureDate);
+  if (closure) return { status: "closed", label: closure.label, closure };
   if (!date || Number.isNaN(date.getTime())) return { status: "unknown", label: "訪問日を決めてから営業情報をご確認ください" };
   const today = scheduleForDate(shop, date);
   const hasClosedDays = Array.isArray(shop.closedDays) || shop.firstWeekdayClosed !== undefined || Array.isArray(shop.winterClosedDays);
@@ -129,8 +131,9 @@ function refreshHours() {
   holidayNotice.textContent = holidayState === "loading" ? "祝日情報を確認しています。" :
     holidayState === "failed" ? "祝日情報を取得できませんでした。祝日の営業や振替休業を正しく表示できない場合があります。" :
     holidaysKnownFor(new Date()) ? "営業時間の判定には祝日も考慮しています。" : "今年の祝日情報を確認できないため、判定できません。";
+  const now = new Date();
   document.querySelectorAll(".shop").forEach((button, index) => {
-    button.querySelector(".open-status").textContent = shopHoursStatus(shopData[index], new Date()).label;
+    button.querySelector(".open-status").textContent = shopHoursStatus(shopData[index], now).label;
   });
   applyFilters();
 }
@@ -244,6 +247,7 @@ let openFilter = false;
 function applyFilters() {
 const selectedArea = areaFilter.value;
 const keyword = shopSearch.value.trim().toLowerCase();
+const now = new Date();
 let visibleCount = 0;
 
 document.querySelectorAll(".shop").forEach((button, index) => {
@@ -252,7 +256,7 @@ const shopArea = button.querySelector(".area").textContent.trim();
 const matchesKeyword = shopName.includes(keyword);
 const matchesArea = selectedArea === "all" || shopArea === selectedArea;
 const matchesVisit = visitFilter === "all" || (visitFilter === "visited" && button.classList.contains("visited")) || (visitFilter === "unvisited" && !button.classList.contains("visited"));
-const matchesOpen = !openFilter || isOpenNow(shopData[index]);
+const matchesOpen = !openFilter || isOpenNow(shopData[index], now);
 button.hidden = !(matchesKeyword && matchesArea && matchesVisit && matchesOpen);
 if (!button.hidden) visibleCount++;
 });
