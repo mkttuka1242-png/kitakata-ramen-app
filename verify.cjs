@@ -34,7 +34,7 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  }
  const runTimers=()=>{let count=0;while(timerQueue.size){assert.ok(count++<100,'timer queue terminates');const [id,callback]=timerQueue.entries().next().value;timerQueue.delete(id);callback();}};
  sandbox.Date=TestDate;
- vm.createContext(sandbox); for(const file of ['shops.js','app.js','questions.js','diagnosis.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
+ vm.createContext(sandbox); for(const file of ['shops.js','shop-closures.js','app.js','questions.js','diagnosis.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
  const run=code=>vm.runInContext(code,sandbox); await new Promise(r=>setImmediate(r));
  const takeNextTimer=()=>{const entry=timerQueue.entries().next().value;if(!entry)return null;const [id,callback]=entry;timerQueue.delete(id);return callback;};
  return {get,run,storage,sandbox,analyticsEvents,runTimers,takeNextTimer,pendingTimers:()=>timerQueue.size,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};

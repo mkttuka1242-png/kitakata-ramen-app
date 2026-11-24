@@ -204,8 +204,8 @@ finishDiagnosis(shop);
 });
 
 // 日時・季節・深夜の判定は本体と共通。診断は定休日未登録を要確認とする。
-function diagnosisShopStatus(shop, date, checkTime = false) {
-  return shopHoursStatus(shop, date, checkTime, true);
+function diagnosisShopStatus(shop, date, checkTime = false, closureDate = date) {
+  return shopHoursStatus(shop, date, checkTime, true, closureDate);
 }
 
 const diagnosisNearbyNames = ["食堂 松", "喜多方ラーメン専門店 喜鈴 喜多方店", "会津田舎家", "葵飯店", "喜多屋", "長谷川食堂", "ラーメン酒場 ばってん", "麺や玄", "ラーメンSHOPくるくる軒"];
@@ -215,9 +215,13 @@ function showDiagnosisAlternatives(kind) {
   window.ramenDawnNote?.unmount();
   cancelRoulette();
   const date = getVisitDate();
+  const closureDate = getDiagnosisClosureDate();
   const names = kind === "nearby" ? diagnosisNearbyNames : diagnosisRelatedNames;
-  const matches = names.map((name) => shopData.find((shop) => shop.name === name)).filter(shop => shop && !korakuenShopIds.has(shop.id));
-const checked = matches.map((shop) => ({ shop, info: diagnosisShopStatus(shop, date, visitTiming === "now" || visitTiming?.startsWith("today-") || visitTiming?.startsWith("tomorrow-")) }));  const unknown = checked.filter(({ info }) => info.status === "unknown");
+  const eligible = getDiagnosisCandidates(closureDate);
+  const matches = names.map((name) => eligible.find((shop) => shop.name === name)).filter(Boolean);
+  const checkTime = visitTiming === "now" || visitTiming?.startsWith("today-") || visitTiming?.startsWith("tomorrow-");
+  const checked = matches.map((shop) => ({ shop, info: diagnosisShopStatus(shop, date, checkTime, closureDate) }));
+  const unknown = checked.filter(({ info }) => info.status === "unknown");
   const available = checked.filter(({ info }) => info.status === "possible");
   const closed = checked.filter(({ info }) => info.status === "closed");
   const heading = kind === "nearby" ? "🍜 坂内の近くにあるお店" : "🤝 坂内ゆかりのお店";
@@ -264,6 +268,7 @@ function finishDiagnosis(shop) {
 function showDiagnosisResult(shop) {
   window.ramenDawnNote?.unmount();
   cancelRoulette();
+  if (shop && getShopClosure(shop.id, getDiagnosisClosureDate())) shop = null;
   lastDiagnosisShop = shop;
   diagnosisPanel.replaceChildren();
   appendHoursNotice();
@@ -363,14 +368,15 @@ if (timeValue) {
   visitDate.setHours(hour, minute, 0, 0);
 }
 const bannaiShop = shopData.find((shop) => shop.name === "坂内食堂");
-const bannaiStatus = bannaiShop ? diagnosisShopStatus(bannaiShop, visitDate, Boolean(timeValue)) : { status: "unknown", label: "店舗情報が見つかりません" };
+const closureDate = new Date(dateValue + "T00:00:00+09:00");
+const bannaiStatus = bannaiShop ? diagnosisShopStatus(bannaiShop, visitDate, Boolean(timeValue), closureDate) : { status: "unknown", label: "店舗情報が見つかりません" };
 
   const result = document.createElement("p");
   result.id = "bannai-date-result";
 
 if (bannaiStatus.status === "closed") {
   result.textContent =
-    "指定日時は定休日または営業時間外です。";
+   bannaiStatus.closure?.label ?? "指定日時は定休日または営業時間外です。";
 } else if (bannaiStatus.status === "unknown") {
   result.textContent =
     "判定できません。";
@@ -382,18 +388,15 @@ if (bannaiStatus.status === "closed") {
   diagnosisPanel.querySelector("#bannai-date-result")?.remove();
   diagnosisPanel.append(result);
 });
-function getRouletteCandidates() {
-  // 既存の95店舗データから候補を取得
-  return shopData.filter((shop) => shop && shop.name);
+function getRouletteCandidates(date = new Date()) {
+  return shopData.filter((shop) => shop?.name && !getShopClosure(shop.id, date));
 }
 
-function getDiagnosisCandidates() {
-  return getRouletteCandidates().filter(shop => !korakuenShopIds.has(shop.id));
+function getDiagnosisCandidates(date = getDiagnosisClosureDate()) {
+  return getRouletteCandidates(date).filter(shop => !korakuenShopIds.has(shop.id));
 }
 
-function pickRandomRamenShop() {
-  const candidates = getRouletteCandidates();
-
+function pickRandomRamenShop(candidates = getRouletteCandidates()) {
   if (candidates.length === 0) {
     return null;
   }
@@ -432,6 +435,14 @@ function getVisitDate() {
 
   return date;
 }
+
+function getDiagnosisClosureDate(now = new Date()) {
+  // 日本時間の「明日」は、端末のタイムゾーンにかかわらず翌暦日を対象にする。
+  return visitTiming?.startsWith("tomorrow")
+    ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    : now;
+}
+
 function isBanNaiClosedOnVisitDate() {
   const date = getVisitDate();
 
@@ -444,10 +455,12 @@ return false;
 }
 function pickRecommendedRamenShop() {
   const visitDate = getVisitDate();
-  const candidates = getDiagnosisCandidates().filter(
+  const closureDate = getDiagnosisClosureDate();
+  const eligible = getDiagnosisCandidates(closureDate);
+  const candidates = eligible.filter(
     (shop) =>
       !visitDate ||
-      diagnosisShopStatus(shop, visitDate, true).status === "possible"
+      diagnosisShopStatus(shop, visitDate, true, closureDate).status === "possible"
 );
 const banNaiClosed = isBanNaiClosedOnVisitDate();
   const banNaiAnswer = diagnosisAnswers.find(
@@ -457,11 +470,11 @@ const banNaiClosed = isBanNaiClosedOnVisitDate();
   );
 
   if (banNaiAnswer === "はい、バレました😂") {
-    const banNai = shopData.find(
+    const banNai = eligible.find(
       (shop) => shop.name.includes("坂内") || shop.name.includes("ばんない")
     );
     if (banNai) {
-const status = visitDate ? diagnosisShopStatus(banNai, visitDate, true).status : null;
+const status = visitDate ? diagnosisShopStatus(banNai, visitDate, true, closureDate).status : null;
 return {
   ...banNai,
   diagnosisUnknown: status === "unknown",
@@ -491,7 +504,10 @@ function showRandomRamenResult() {
   const generation = rouletteGeneration;
   rouletteButton.disabled = true;
 
-  const shop = pickRandomRamenShop();
+  const now = new Date();
+  let candidateDay = closureDateKey(now);
+  let candidates = getRouletteCandidates(now);
+  let shop = pickRandomRamenShop(candidates);
 
   if (!shop) {
     rouletteButton.disabled = false;
@@ -510,12 +526,23 @@ function showRandomRamenResult() {
   const result = document.createElement("p");
   result.textContent = `あなたに選ばれたお店は「${shop.name}」です！`;
   
-  const candidates = getRouletteCandidates();
   let spinCount = 0;
 
   rouletteTimer = setTimeout(function spin() {
     if (generation !== rouletteGeneration) return;
     rouletteTimer = null;
+    const current = new Date();
+    const day = closureDateKey(current);
+    if (day !== candidateDay) {
+      candidateDay = day;
+      candidates = getRouletteCandidates(current);
+      if (!candidates.includes(shop)) shop = pickRandomRamenShop(candidates);
+      if (!shop) {
+        result.textContent = "紹介できる店舗がありません。";
+        rouletteButton.disabled = false;
+        return;
+      }
+    }
     const randomIndex = Math.floor(Math.random() * candidates.length);
     result.textContent = `🍜 ${candidates[randomIndex].name}`;
     spinCount++;
