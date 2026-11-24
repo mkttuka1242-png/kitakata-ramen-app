@@ -6,7 +6,7 @@
     if (w.__ramenAnalyticsInitialized) return;
     w.__ramenAnalyticsInitialized = true;
     const location = w.location;
-    if (location.protocol !== 'https:' || location.hostname !== 'kitakataramen.aizu.blog' || location.port ||
+    if (location.protocol !== 'https:' || location.hostname !== 'kitakatara-men.com' || location.port ||
         !['/', '/index.html'].includes(location.pathname) || w.self !== w.top ||
         document.currentScript?.dataset.enhancedMeasurement !== 'off-confirmed') return;
     // 設定を読めない場合も送信しない。訪問記録のキーにはアクセスしない。
@@ -16,7 +16,7 @@
       'diagnosis_start', 'diagnosis_result', 'roulette_start', 'roulette_result',
       'visit_add', 'visit_remove', 'map_click', 'share_x_click', 'share_facebook_click', 'share_threads_click',
     ]);
-    const page = { page_location: 'https://kitakataramen.aizu.blog/', page_title: '喜多方ラーメン95', page_referrer: '' };
+    const page = { page_location: 'https://kitakatara-men.com/', page_title: '喜多方ラーメン95', page_referrer: '' };
     let failed = false;
     let loaded = false;
     w.dataLayer = w.dataLayer || [];

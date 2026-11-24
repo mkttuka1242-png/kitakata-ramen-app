@@ -6,7 +6,7 @@ const { boot } = require('./verify.cjs');
 const source = fs.readFileSync(path.join(__dirname, 'analytics.js'), 'utf8');
 let checks=0;
 const check=(value,message)=>{assert.ok(value,message);checks++;};
-function tag({host='kitakataramen.aizu.blog', protocol='https:', pathname='/', port='', frame=false, gate='off-confirmed', denied=false, blocked=false, failAppend=false}={}) {
+function tag({host='kitakatara-men.com', protocol='https:', pathname='/', port='', frame=false, gate='off-confirmed', denied=false, blocked=false, failAppend=false}={}) {
   const scripts=[];
   const w={location:{hostname:host,protocol,pathname,port,href:'https://'+host+pathname+'?q=PRIVATE_SEARCH#PRIVATE_FRAGMENT'},localStorage:{getItem:key=>{assert.equal(key,'kitakata-ramen-analytics-disabled');if(blocked)throw Error('storage blocked');return denied?'true':null;}}};
   w.self=w;w.top=frame?{}:w;
@@ -33,7 +33,7 @@ const events=x=>commands(x).filter(c=>c[0]==='event');
     x.w.ramenAnalytics.track('map_click',{shop_id:92,shop_name:'PRIVATE_NAME',search_term:'PRIVATE_SEARCH'});
     const map=events(x).at(-1);
     check(map[1]==='map_click' && Object.keys(map[2]).sort().join(',')==='page_location,page_referrer,page_title,send_to','event parameters are fixed allowlist');
-    check(map[2].page_location==='https://kitakataramen.aizu.blog/' && map[2].page_referrer==='' && !JSON.stringify(commands(x)).includes('PRIVATE_'),'no URL query, hash, referrer or arbitrary data');
+    check(map[2].page_location==='https://kitakatara-men.com/' && map[2].page_referrer==='' && !JSON.stringify(commands(x)).includes('PRIVATE_'),'no URL query, hash, referrer or arbitrary data');
     const count=events(x).length; x.w.ramenAnalytics.track('search');x.w.ramenAnalytics.track('page_view');x.w.ramenAnalytics.track('share_complete');
     check(events(x).length===count,'unknown and duplicate PV events rejected');
     x.scripts[0].onerror();x.w.ramenAnalytics.track('visit_add');

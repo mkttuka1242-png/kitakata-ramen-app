@@ -229,7 +229,7 @@ const shareXTopButton = document.getElementById("share-x-top");
 
 shareXButton.addEventListener("click", () => {
  trackUsage('share_x_click');
- const text = `🍜 喜多方ラーメン巡り\n現在${visited.length}/${shopData.length}店を訪問しました！\n制覇率${Math.round((visited.length / shopData.length) * 100)}%\n「喜多方ラーメン９５」\n#喜多方ラーメン\nhttps://kitakataramen.aizu.blog/`;
+ const text = `🍜 喜多方ラーメン巡り\n現在${visited.length}/${shopData.length}店を訪問しました！\n制覇率${Math.round((visited.length / shopData.length) * 100)}%\n「喜多方ラーメン９５」\n#喜多方ラーメン\nhttps://kitakatara-men.com/`;
  const xUrl = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
  window.open(xUrl, "_blank");
  }); 
@@ -283,7 +283,7 @@ const facebookShareTop = document.getElementById("share-facebook-top");
 
 facebookShareTop.addEventListener("click", () => {
 trackUsage('share_facebook_click');
-const shareUrl = "https://kitakataramen.aizu.blog/";
+const shareUrl = "https://kitakatara-men.com/";
 const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
 window.open(facebookUrl, "_blank", "noopener,noreferrer");
 });
@@ -292,7 +292,7 @@ const threadsShareTop = document.getElementById("share-threads-top");
 
 threadsShareTop.addEventListener("click", () => {
   trackUsage('share_threads_click');
-  const shareUrl = "https://kitakataramen.aizu.blog/";
+  const shareUrl = "https://kitakatara-men.com/";
   const done = visited.length;
   const percent = Math.round((done / shopData.length) * 100);
   const shareText = ` 喜多方ラーメン巡り\n訪問済み ${done} / ${shopData.length}店\n制覇率 ${percent}%\n「喜多方ラーメン９５」`;
