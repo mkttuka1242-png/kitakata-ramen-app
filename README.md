@@ -16,7 +16,7 @@ Chromeのヘッドレス実行で、実際のCSSと表示モジュールを使�
 
 ### 有効範囲とデータの制限
 
-- `https://kitakataramen.aizu.blog/` と同ホストの `/index.html` のトップレベル表示だけでGoogleタグを読み込みます。localhost、127.0.0.1、HTTP、別ホスト・ポート、privacy.html、test-hours.html、iframe内（日時テストから読み込む本体を含む）では読み込み・送信しません。
+- `https://kitakatara-men.com/` と同ホストの `/index.html` のトップレベル表示だけでGoogleタグを読み込みます。localhost、127.0.0.1、HTTP、別ホスト・ポート、privacy.html、test-hours.html、iframe内（日時テストから読み込む本体を含む）では読み込み・送信しません。
 - `analytics.js` のイベント許可リストを通し、操作名以外の独自パラメーターは送信しません。店舗ID・店舗名・訪問一覧／訪問数・診断回答／結果店舗・検索文字列・共有文・地図やSNSのリンクURL・訪問予定日時は渡しません。
 - `page_location` はトップの固定URL、`page_title` は固定タイトル、`page_referrer` は空文字。クエリ・ハッシュ・参照元を解析項目に含めず、HTMLのreferrer設定でも送信を抑えます。キャンペーン項目の自動流入値も使用しない設定です。このため流入元・キャンペーン別分析は行いません。
 - Googleタグが処理するCookie識別子、ブラウザ・端末情報、おおよその地域、first_visit／session_start／user_engagementなどの自動収集は、独自イベントとは別に存在します。完全匿名・Cookie不使用ではありません。Googleシグナルと広告パーソナライズを無効化し、広告関連の同意設定はdeniedとしています。
