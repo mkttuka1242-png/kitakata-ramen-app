@@ -9,7 +9,7 @@ class Element {
   get innerHTML() { return this._innerHTML || ''; }
   constructor() { this.children=[]; this.listeners={}; this.attributes={}; this.textContent=''; this.value='all'; this.hidden=false; this.dataset={}; this.disabled=false; this.classes=new Set(); this.classList={add:x=>this.classes.add(x),remove:x=>this.classes.delete(x),contains:x=>this.classes.has(x),toggle:(x,v)=>v?this.classes.add(x):this.classes.delete(x)}; }
   set className(v) { this._className=v; this.classes=new Set(v.split(' ')); } get className(){return this._className;}
-  setAttribute(k,v){this.attributes[k]=v;} appendChild(e){this.children.push(e);return e;} append(...e){this.children.push(...e);} after(){}
+  setAttribute(k,v){this.attributes[k]=v;} appendChild(e){e.parentElement=this;this.children.push(e);return e;} append(...e){e.forEach(child=>this.appendChild(child));} after(){}
   replaceChildren(...e){this.children=e;} addEventListener(k,f){(this.listeners[k]??=[]).push(f);} click(){this.fire('click',{target:this});} fire(k,event={}){for(const f of this.listeners[k]||[]) f(event);}
   querySelector(s){return this.children.find(e=>e.classes.has(s.slice(1)))||null;} animate(){}
 }
@@ -21,9 +21,15 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  }
  const ids={}; const find=(nodes,id)=>{for(const n of nodes){if(n.id===id)return n;const found=find(n.children||[],id);if(found)return found;}}; const get=id=>ids[id]||find(Object.values(ids),id)||(ids[id]=new Element()); get('shop-search').value='';
  const storage=new Map([['kitakata-ramen-visited-v1',stored],['kitakata-ramen-previous-questions','broken']]);
- const doc={getElementById:get,createElement:()=>new Element(),querySelector:s=>get(s),querySelectorAll:s=>get('shops').children.filter(e=>s==='.shop'||s==='.shop.visited'&&e.classes.has('visited'))};
+ const shopButton=index=>get('shops').children[index]?.querySelector('.shop');
+ const doc={getElementById:get,createElement:()=>new Element(),querySelector:s=>get(s),querySelectorAll:s=>{
+   const buttons=get('shops').children.map((_,index)=>shopButton(index)).filter(Boolean);
+   if(s==='.shop'||s==='#shops .shop') return buttons;
+   return s==='.shop.visited' ? buttons.filter(button=>button.classes.has('visited')) : [];
+ }};
  let resolveFetch; const response={ok:true,json:async()=>({'2026-01-01':'fixture','2026-11-03':'fixture','2025-01-01':'fixture'})};
- const sandbox={document:doc,localStorage:{getItem:k=>{if(blocked)throw Error('blocked');return storage.get(k)??null;},setItem:(k,v)=>{if(blocked)throw Error('blocked');storage.set(k,v);}},fetch:()=>pending?new Promise(r=>resolveFetch=r):fail?Promise.reject(Error('offline')):Promise.resolve(response),AbortController,setTimeout:()=>1,clearTimeout(){},setInterval(){},window:{confirm:()=>true,open:(...a)=>sandbox.opened.push(a)},opened:[],console};
+ const windowEvents=new Element();
+ const sandbox={document:doc,localStorage:{getItem:k=>{if(blocked)throw Error('blocked');return storage.get(k)??null;},setItem:(k,v)=>{if(blocked)throw Error('blocked');storage.set(k,v);}},fetch:()=>pending?new Promise(r=>resolveFetch=r):fail?Promise.reject(Error('offline')):Promise.resolve(response),AbortController,Event,setTimeout:()=>1,clearTimeout(){},setInterval(){},window:{confirm:()=>true,open:(...a)=>sandbox.opened.push(a),addEventListener:(name,fn)=>windowEvents.addEventListener(name,fn),dispatchEvent:event=>windowEvents.fire(event.type,event)},opened:[],console};
  const analyticsEvents=[];
  if (analytics==='capture') sandbox.window.ramenAnalytics={track:(...args)=>analyticsEvents.push(args)};
  if (analytics==='throw') sandbox.window.ramenAnalytics={track:()=>{throw Error('analytics blocked');}};
@@ -37,16 +43,16 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  vm.createContext(sandbox); for(const file of ['shops.js','shop-closures.js','app.js','questions.js','diagnosis.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
  const run=code=>vm.runInContext(code,sandbox); await new Promise(r=>setImmediate(r));
  const takeNextTimer=()=>{const entry=timerQueue.entries().next().value;if(!entry)return null;const [id,callback]=entry;timerQueue.delete(id);return callback;};
- return {get,run,storage,sandbox,analyticsEvents,runTimers,takeNextTimer,pendingTimers:()=>timerQueue.size,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
+ return {get,shopButton,run,storage,sandbox,analyticsEvents,runTimers,takeNextTimer,pendingTimers:()=>timerQueue.size,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
 }
 if (require.main === module) (async()=>{
  let checks=0; const check=(v,msg)=>{assert.ok(v,msg);checks++;};
  const b=await boot(); check(b.get('shops').children.length===95,'95 cards'); check(b.run('visited.includes(2)'),'existing record');
- b.get('filter-visited').click(); check(b.get('result-count').textContent==='表示中 1店','visited filter'); b.get('shops').children[1].click(); check(b.get('result-count').textContent==='表示中 0店','toggle refresh');
- b.get('filter-unvisited').click(); b.get('shops').children[0].click(); check(b.get('result-count').textContent==='表示中 94店','unvisited refresh'); b.get('filter-visited').click(); b.get('reset').click(); check(b.get('result-count').textContent==='表示中 0店','reset refresh');
+ b.get('filter-visited').click(); check(b.get('result-count').textContent==='表示中 1店','visited filter'); b.shopButton(1).click(); check(b.get('result-count').textContent==='表示中 0店','toggle refresh');
+ b.get('filter-unvisited').click(); b.shopButton(0).click(); check(b.get('result-count').textContent==='表示中 94店','unvisited refresh'); b.get('filter-visited').click(); b.get('reset').click(); check(b.get('result-count').textContent==='表示中 0店','reset refresh');
  b.get('shop-search').value='坂内'; b.get('shop-search').fire('input'); b.get('filter-all').click(); check(b.get('result-count').textContent==='表示中 1店','combined search');
  for(const raw of ['broken','null','{}']) {const x=await boot({stored:raw});check(x.get('shops').children.length===95,'bad storage boots');check(x.storage.get('kitakata-ramen-visited-v1')===raw,'original bad data untouched');}
- const blocked=await boot({blocked:true}); blocked.get('shops').children[0].click();check(blocked.run('visited.length')===1,'blocked storage stays usable');
+ const blocked=await boot({blocked:true}); blocked.shopButton(0).click();check(blocked.run('visited.length')===1,'blocked storage stays usable');
  check(b.run('pickDiagnosisQuestions().length')===3,'bad question history');
  b.run('showDiagnosisResult(null)'); b.get('diagnosis-panel').children.find(e => e.listeners.click?.length).click();check(b.run('diagnosisAnswers.length')===0,'retry works');
  const offline=await boot({fail:true});check(offline.run('holidayState')==='failed','failure state');check(offline.get('holiday-status').textContent.includes('取得できません'),'failure notice');check(offline.run('isOpenNow(shopData[1])')===false,'unknown excluded');
@@ -206,7 +212,7 @@ if (require.main === module) (async()=>{
  check(policy.get('shops').children.filter(e=>!e.hidden).length===2, 'Korakuen remains searchable');
  for (const id of [92,93]) {
    const card=policy.get('shops').children[id-1];
-   check(card.classes.has('visited'), 'Korakuen visited ID retained '+id);
+   check(policy.shopButton(id-1).classes.has('visited'), 'Korakuen visited ID retained '+id);
    card.querySelector('.map-button').fire('click',{stopPropagation(){}});
  }
  check(policy.sandbox.opened.length===2 && policy.storage.get('kitakata-ramen-visited-v1')===saved69, 'both Korakuen maps open without changing saved visits');

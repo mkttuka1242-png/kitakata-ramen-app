@@ -9,6 +9,9 @@
 <meta name="description" content="喜多方市のラーメン店95店舗を探せる「喜多方ラーメン95」。店名やエリアで検索し、営業時間や休業情報を確認できます。好みに合わせたおすすめ診断や、食べ歩きの訪問記録も楽しめます。">
 <link rel="canonical" href="https://kitakatara-men.com/">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link id="marker-cluster-css" rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
+<link id="marker-cluster-theme" rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
 
 </head>
 
@@ -77,7 +80,12 @@
 
 
 
-    <section id="shops" aria-label="ラーメン店一覧"></section>
+    <div class="view-switch" role="group" aria-label="表示方法">
+<button type="button" id="view-list" class="active" aria-pressed="true">📋 店舗一覧</button>
+<button type="button" id="view-map" aria-pressed="false">🗺️ 地図から探す</button>
+</div>
+<div id="map-panel" hidden><p id="map-message" role="status"></p><div id="shop-map" aria-label="ラーメン店の地図"></div><p class="map-attribution-note">地図はOpenStreetMapを利用。店舗の位置は確認できたもののみ表示します。</p></div>
+<section id="shops" aria-label="ラーメン店一覧"></section>
 
     <div class="actions">
       <button id="reset" class="reset" type="button">すべての訪問チェックを解除</button>
@@ -92,6 +100,10 @@
 
   <script src="shop-closures.js"></script>
   <script src="app.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+<script src="shop-locations.js?v=161845e1"></script>
+<script src="map-view.js"></script>
 
   <script src="questions.js"></script>
 

@@ -56,7 +56,7 @@ const events=x=>commands(x).filter(c=>c[0]==='event');
   const saved=JSON.stringify([...Array.from({length:67},(_,i)=>i+1),92,93]);
   const x=await boot({stored:saved,now:'2026-11-14T12:00:00',timers:true});
   const count=name=>x.analyticsEvents.filter(e=>e[0]===name).length;
-  x.get('shops').children[0].click();x.get('shops').children[0].click();
+  x.shopButton(0).click();x.shopButton(0).click();
   check(count('visit_remove')===1 && count('visit_add')===1 && x.storage.get('kitakata-ramen-visited-v1')===saved,'visit events once per toggle and records restored');
   x.get('shops').children[91].querySelector('.map-button').fire('click',{stopPropagation(){}});
   check(count('map_click')===1 && count('visit_add')===1 && count('visit_remove')===1,'map not a visit toggle');
@@ -92,7 +92,7 @@ const events=x=>commands(x).filter(c=>c[0]==='event');
   check(x.storage.get('kitakata-ramen-visited-v1')===saved && x.run('visited.length')===69,'analytics flows keep all 69 saved visits');
   for(const analytics of ['throw','absent']) {
     const y=await boot({stored:saved,analytics,now:'2026-11-14T12:00:00',timers:true});
-    y.get('shops').children[0].click();y.get('shops').children[0].click();
+    y.shopButton(0).click();y.shopButton(0).click();
     y.get('start-diagnosis').click();y.run('finishDiagnosis(shopData[1]);');
     y.get('start-roulette').click();y.runTimers();
     for(const id of ['share-x','share-x-top','share-facebook-top','share-threads-top'])y.get(id).click();

@@ -450,3 +450,16 @@ cursor: pointer;
 @media (max-width: 600px) {
   .hours-notice { font-size: 14px; line-height: 1.7; }
 }
+
+/* 地図機能テスト用 */
+.shop-card { min-width: 0; display: flex; flex-direction: column; }
+.shop-card[hidden] { display: none !important; }
+.shop-card > .shop { flex: 1; width: 100%; }
+.shop-card > .map-button { margin: 4px auto 2px; }
+.view-switch { display: flex; gap: 8px; margin: 16px 0; }
+.view-switch button { flex: 1; padding: 12px 8px; border: 1px solid #bbb; border-radius: 10px; background: white; font-weight: 700; cursor: pointer; }
+.view-switch button.active { background: #333; color: white; }
+#map-panel[hidden], #shops[hidden] { display: none !important; }
+#shop-map { height: min(65vh, 600px); min-height: 360px; border-radius: 10px; z-index: 0; }
+#map-message { font-size: 14px; line-height: 1.6; }
+.map-attribution-note { font-size: 12px; color: #555; }

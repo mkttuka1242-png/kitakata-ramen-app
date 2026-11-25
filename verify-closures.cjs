@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { boot } = require('./verify.cjs');
 
 const visitedKey = 'kitakata-ramen-visited-v1';
@@ -11,6 +13,36 @@ function equal(actual, expected, message) {
   checks++;
 }
 
+function loadMap(app) {
+  const pins = [];
+  const visible = new Set();
+  const layer = { addTo: () => layer, clearLayers: () => visible.clear() };
+  const map = { setView: () => map, invalidateSize() {} };
+  app.sandbox.L = {
+    map: () => map,
+    tileLayer: () => ({ on() {}, addTo() {} }),
+    layerGroup: () => layer,
+    marker(coordinates) {
+      const pin = {
+        coordinates,
+        bindPopup(content) { this.content = content; },
+        setOpacity(opacity) { this.opacity = opacity; },
+        addTo() { visible.add(this); },
+      };
+      pins.push(pin);
+      return pin;
+    },
+  };
+  for (const file of ['shop-locations.js', 'map-view.js']) {
+    app.run(fs.readFileSync(path.join(__dirname, file), 'utf8'));
+  }
+  app.get('view-map').click();
+  app.runTimers();
+  const pin = pins.find(entry => entry.content.children[0].textContent === 'めん処 縁');
+  assert.ok(pin);
+  return { pin, visible, status: pin.content.children[2] };
+}
+
 function panelText(node) {
   return [node.textContent, ...node.children.map(panelText)].join('\n');
 }
@@ -18,7 +50,7 @@ function panelText(node) {
 (async () => {
   const app = await boot({ stored: saved, now: '2026-11-29T12:00:00+09:00', timers: true });
   const { run } = app;
-  const card = app.get('shops').children[76];
+  const card = app.shopButton(76);
   const status = card.querySelector('.open-status');
   run('const en = shopData.find(shop => shop.id === 77);');
   const closure = "(getShopClosure(77)?.label ?? '')";
@@ -37,6 +69,10 @@ function panelText(node) {
   equal(run(recommendationHasEn), true, 'diagnosis can consider ID 77 before closure');
   equal(run(rouletteHasEn), true, 'roulette can consider ID 77 before closure');
 
+  const { pin, visible, status: popupStatus } = loadMap(app);
+  equal(visible.has(pin), true, 'existing map pin visible');
+  equal(popupStatus.hidden, true, 'no closure label before the closure');
+  equal(pin.opacity, 1, 'visited pin retains its appearance');
   const search = app.get('shop-search');
   search.value = 'めん処 縁';
   search.fire('input');
@@ -54,15 +90,20 @@ function panelText(node) {
     app.setNow(instant);
     run('refreshHours()');
     equal(run(closure), label, 'closure at ' + instant);
-    equal(card.hidden, false, 'card remains in search at ' + instant);
+    equal(popupStatus.hidden, !label, 'popup visibility at ' + instant);
+    equal(popupStatus.textContent, label, 'popup label at ' + instant);
+    equal(visible.has(pin), true, 'pin remains in map search at ' + instant);
+    equal(card.parentElement.hidden, false, 'card remains in search at ' + instant);
     if (!label) continue;
     equal(status.textContent, label, 'card label at ' + instant);
     equal(run('isOpenNow(en)'), false, 'open now at ' + instant);
     equal(run('shopHoursStatus(en, new Date(), false).label'), label, 'date-only decision at ' + instant);
     equal(run(rouletteHasEn), false, 'roulette exclusion at ' + instant);
     app.get('filter-open').click();
-    equal(card.hidden, true, 'open filter hides card at ' + instant);
+    equal(card.parentElement.hidden, true, 'open filter hides card at ' + instant);
+    equal(visible.has(pin), false, 'open filter hides pin at ' + instant);
     app.get('filter-open').click();
+    equal(visible.has(pin), true, 'clearing the open filter restores pin at ' + instant);
   }
 
   app.setNow('2026-11-29T12:00:00+09:00');
@@ -110,17 +151,18 @@ function panelText(node) {
   equal(rouletteButton.disabled, false, 'roulette can run again');
 
   const outage = await boot({ fail: true, now: '2026-12-01T03:00:00Z' });
-  equal(outage.get('shops').children[76].querySelector('.open-status').textContent, '冬期休業', 'closure takes precedence when holiday data fails');
+  equal(outage.shopButton(76).querySelector('.open-status').textContent, '冬期休業', 'closure takes precedence when holiday data fails');
   run('shopClosures[77][1].endDate = "2027-03-31"');
   app.setNow('2027-03-31T14:59:59.999Z');
   equal(run(closure), '冬期休業', 'known end date is inclusive');
   app.setNow('2027-03-31T15:00:00.000Z');
   run('refreshHours()');
   equal(run(closure), '', 'normal decision resumes the day after the end date');
+  equal(popupStatus.hidden, true, 'map no longer shows a closure after reopening');
   equal(run(rouletteHasEn), true, 'reopened shop returns to roulette');
   equal(app.get('count').textContent, '訪問済み 2 / 95 店', 'visit count and denominator unchanged');
   equal(app.get('shops').children.length, 95, 'all cards retained');
   equal(card.classes.has('visited'), true, 'visit state remains visible');
   equal(app.storage.get(visitedKey), saved, 'storage value is unchanged');
-  console.log('PASS ' + checks + ' closure checks (Node VM + DOM stubs)');
+  console.log('PASS ' + checks + ' closure checks (Node VM + DOM/Leaflet stubs)');
 })().catch(error => { console.error(error); process.exitCode = 1; });

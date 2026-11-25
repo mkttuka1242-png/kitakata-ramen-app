@@ -154,6 +154,8 @@ async function loadHolidays() {
 }
 
 shopData.forEach((shop) => {
+  const wrapper = document.createElement("div");
+  wrapper.className = "shop-card";
   const button = document.createElement("button");
   button.type = "button";
   button.className = "shop";
@@ -191,9 +193,10 @@ button.appendChild(status);
   trackUsage('map_click');
   window.open(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`, "_blank");
 });
-button.appendChild(mapButton); 
+wrapper.appendChild(button);
+wrapper.appendChild(mapButton);
   button.addEventListener("click", () => toggleVisited(shop.id, button));
-  shopsElement.appendChild(button);
+  shopsElement.appendChild(wrapper);
 });
 
 resetButton.addEventListener("click", () => {
@@ -257,10 +260,11 @@ const matchesKeyword = shopName.includes(keyword);
 const matchesArea = selectedArea === "all" || shopArea === selectedArea;
 const matchesVisit = visitFilter === "all" || (visitFilter === "visited" && button.classList.contains("visited")) || (visitFilter === "unvisited" && !button.classList.contains("visited"));
 const matchesOpen = !openFilter || isOpenNow(shopData[index], now);
-button.hidden = !(matchesKeyword && matchesArea && matchesVisit && matchesOpen);
-if (!button.hidden) visibleCount++;
+button.parentElement.hidden = !(matchesKeyword && matchesArea && matchesVisit && matchesOpen);
+if (!button.parentElement.hidden) visibleCount++;
 });
 document.getElementById("result-count").textContent = `表示中 ${visibleCount}店`;
+window.dispatchEvent(new Event("kitakata:filters-updated"));
 }  
 
 shopSearch.addEventListener("input", applyFilters);
