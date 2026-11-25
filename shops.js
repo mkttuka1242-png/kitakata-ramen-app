@@ -67,7 +67,7 @@
       { id: 66, name: "ほおずき", area: "喜多方（松山町）", color: "blue" },
       { id: 67, name: "食堂 ぽんぽこ", area: "喜多方（松山町）", color: "blue", hours: "11:00-14:00,17:30-20:00", closedDays: [2] },
       { id: 68, name: "そば処 うちうみ", area: "喜多方（岩月町）", color: "blue", hours: "11:00-14:30", closedDays: [3] },
-      { id: 69, name: "ミセスキャロット信喜亭", area: "喜多方（関柴町）", color: "blue", hours: "11:00-14:00", closedDays: [0] },
+      { id: 69, name: "信喜亭", area: "喜多方（関柴町）", color: "blue", hours: "11:00-14:00", closedDays: [0] },
       { id: 70, name: "麺侍", area: "喜多方（市街地）", color: "blue", hours: "07:00-14:00", closedDays: [2] },
       { id: 71, name: "喜多方ラーメン わんわん", area: "喜多方（関柴町）", color: "blue", hours: "11:00-19:30" },
       { id: 72, name: "さくら亭", area: "喜多方（市街地）", color: "blue", hours: "11:00-20:00", closedDays: [4] },
