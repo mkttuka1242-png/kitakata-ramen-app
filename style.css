@@ -57,81 +57,132 @@
 
     #shops {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+      gap: 12px;
+    }
+
+    .shop-card {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid #ccbfad;
+      border-radius: 12px;
+      background: #fffdf8;
+    }
+
+    .shop-card[hidden],
+    .shop-details > [hidden] {
+      display: none;
+    }
+
+    .shop-card-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) fit-content(46%);
+      align-items: start;
       gap: 8px;
     }
 
-    .shop {
-      position: relative;
-      min-height: 76px;
-      padding: 0;
-      overflow: hidden;
-      border: 1px solid #777;
-      border-radius: 3px;
-      background: #fff;
-      cursor: pointer;
-      
-      transition: opacity .15s, transform .15s, box-shadow .15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .shop:hover {
-      opacity: .72;
-    }
-
-    .shop.visited {
-      opacity: 1;
-      transform: translateY(-1px);
-      box-shadow: 0 0 0 3px #ffd84d, 0 4px 10px rgba(0,0,0,.22);
-    }
-
-    .shop.visited::after {
-      content: "✓";
-      position: absolute;
-      top: 3px;
-      right: 5px;
-      width: 24px;
-      height: 24px;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      color: #111;
-      background: #ffdf43;
-      font-weight: 900;
-    }
-
-    .name {
-      min-height: 45px;
-      display: grid;
-      place-items: center;
-      padding: 7px 28px 7px 6px;
+    .shop-name {
+      margin: 0;
+      padding: 4px 8px;
+      border-radius: 6px;
       color: white;
-      font-size: 15px;
-      line-height: 1.2;
-      text-align: center;
+      font-size: 1.1875rem;
       font-weight: 700;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
     }
 
-    .red {
-      background: #b31328;
+    .shop-name.red { background: #b31328; }
+    .shop-name.blue { background: #0b829f; }
+
+    .shop-card .open-status {
+      padding: 3px 7px;
+      border-radius: 7px;
+      background: #f0ece5;
+      color: #514639;
+      font-size: 0.75rem;
+      font-weight: 700;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
     }
 
-    .blue {
-      background: #0b829f;
+    .shop-card .open-status[data-state="possible"] {
+      background: #e4efe2;
+      color: #245334;
     }
 
-    .area {
-      min-height: 29px;
+    .shop-card .open-status[data-state="closed"] {
+      background: #f6e5df;
+      color: #80342a;
+    }
+
+    .shop-details {
       display: grid;
-      place-items: center;
-      padding: 4px 3px;
-      background: #f8f8f8;
-      color: #222;
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1.15;
-      text-align: center;
+      gap: 4px;
+      margin: 10px 0 0;
+      font-size: 0.8125rem;
+      line-height: 1.45;
     }
+
+    .shop-details > div {
+      display: grid;
+      grid-template-columns: 5em minmax(0, 1fr);
+      gap: 6px;
+    }
+
+    .shop-details dt {
+      color: #66594a;
+      font-weight: 600;
+    }
+
+    .shop-details dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .shop-card-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 12px;
+    }
+
+    .shop-card-actions button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-width: 0;
+      min-height: 44px;
+      padding: 6px;
+      border: 1px solid #b7ac9d;
+      border-radius: 8px;
+      background: #fff;
+      color: #40372e;
+      font: inherit;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      cursor: pointer;
+      overflow-wrap: anywhere;
+    }
+
+    .shop-card-actions button:hover { background: #f2ede4; }
+    .shop-card-actions button:focus-visible {
+      outline: 2px solid #155b6a;
+      outline-offset: 2px;
+    }
+
+    .shop-card .visit-button[aria-pressed="true"] {
+      border-color: #6b8a6f;
+      background: #e1eedf;
+      color: #205030;
+    }
+
+    .shop-card .visit-button[aria-pressed="true"]:hover { background: #d4e6d0; }
+    .visit-icon { font-size: 0.95rem; line-height: 1; }
 
     .actions {
       display: flex;
@@ -147,24 +198,9 @@
       cursor: pointer;
     }
 
-    @media (max-width: 900px) {
-      #shops {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-    }
-
     @media (max-width: 620px) {
       body {
         padding: 10px;
-      }
-
-      #shops {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 7px;
-      }
-
-      .name {
-        font-size: 14px;
       }
 
       .summary {
@@ -255,37 +291,6 @@ cursor: pointer;
   color: #fff;
   font-weight: bold;
   cursor: pointer;
-}
-
-.map-button {
-  display: block;
-  margin: 6px auto 4px;
-  padding: 4px 10px;
-  border: 1px solid #bbb;
-  border-radius: 999px;
-  background: #fff;
-  color: #333;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.map-button:hover {
-  background: #f0f0f0;
-}
-
-.shop:not(.visited) .map-button {
-  opacity: 1;
-  color: #333;
-  background: #fff;
-}
-.shop:not(.visited) .map-button {
-  opacity: 1;
-  filter: none;
-}
-
-.shop:not(.visited) .name,
-.shop:not(.visited) .area {
-  opacity: 0.48;
 }
 
 .hours-notice {
@@ -440,7 +445,6 @@ cursor: pointer;
 }
 
 /* 状態表示と注意書きを狭い画面でも折り返す */
-.open-status { display: block; padding: 4px 6px; font-size: 0.85rem; line-height: 1.5; overflow-wrap: anywhere; }
 .hours-disclaimer { font-size: 0.9rem; line-height: 1.7; overflow-wrap: anywhere; }
 .diagnosis-later-row { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; vertical-align: middle; }
 .diagnosis-later-row > button { flex: 0 0 auto; }
@@ -451,11 +455,7 @@ cursor: pointer;
   .hours-notice { font-size: 14px; line-height: 1.7; }
 }
 
-/* 地図機能テスト用 */
-.shop-card { min-width: 0; display: flex; flex-direction: column; }
-.shop-card[hidden] { display: none !important; }
-.shop-card > .shop { flex: 1; width: 100%; }
-.shop-card > .map-button { margin: 4px auto 2px; }
+/* 地図と一覧の表示切替 */
 .view-switch { display: flex; gap: 8px; margin: 16px 0; }
 .view-switch button { flex: 1; padding: 12px 8px; border: 1px solid #bbb; border-radius: 10px; background: white; font-weight: 700; cursor: pointer; }
 .view-switch button.active { background: #333; color: white; }

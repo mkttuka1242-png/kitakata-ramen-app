@@ -47,20 +47,19 @@ const filterOpenButton = document.getElementById("filter-open");
       percentElement.textContent = `制覇率 ${percent}%`;
     }
 
-    function toggleVisited(id, button) {
-      if (visited.includes(id)) {
+    function toggleVisited(shopCard) {
+      const id = shopCard.shop.id;
+      const nextVisited = !visited.includes(id);
+      if (!nextVisited) {
         visited = visited.filter((visitedId) => visitedId !== id);
-        button.classList.remove("visited");
-        button.setAttribute("aria-pressed", "false");
         trackUsage('visit_remove');
       } else {
         visited.push(id);
         visited.sort((a, b) => a - b);
-        button.classList.add("visited");
-        button.setAttribute("aria-pressed", "true");
         trackUsage('visit_add');
       }
 
+      renderVisitState(shopCard, nextVisited);
       saveVisited();
       updateCount();
       applyFilters();
@@ -77,6 +76,13 @@ function dateKey(date) {
 function holidaysKnownFor(date) {
   return holidayDates.some(key => key.startsWith(date.getFullYear() + "-"));
 }
+function hoursForDate(shop, date, weekend) {
+  const month = date.getMonth() + 1;
+  return ([12,1,2].includes(month) && (weekend ? shop.winterHoursWeekend : shop.winterHoursWeekday)) ||
+    ([12,1,2].includes(month) && shop.winterHours) ||
+    ([4,5,6,7,8,9,10,11].includes(month) && weekend && shop.springToAutumnWeekendHours) ||
+    shop.hoursByDay?.[date.getDay()] || (weekend ? shop.hoursWeekend || shop.hours : shop.hoursWeekday || shop.hours);
+}
 function scheduleForDate(shop, date) {
   const day = date.getDay(), month = date.getMonth() + 1;
   const previous = new Date(date); previous.setDate(date.getDate() - 1);
@@ -89,10 +95,7 @@ function scheduleForDate(shop, date) {
   if (shop.winterClosedDays?.includes(day) && [12,1,2,3].includes(month) && !holiday) return { status: "closed", label: "定休日" };
   if (shop.firstWeekdayClosed === day && date.getDate() <= 7 && !holiday) return { status: "closed", label: "定休日" };
   const weekend = day === 0 || day === 6 || holiday;
-  const hours = ([12,1,2].includes(month) && (weekend ? shop.winterHoursWeekend : shop.winterHoursWeekday)) ||
-    ([12,1,2].includes(month) && shop.winterHours) ||
-    ([4,5,6,7,8,9,10,11].includes(month) && weekend && shop.springToAutumnWeekendHours) ||
-    shop.hoursByDay?.[day] || (weekend ? shop.hoursWeekend || shop.hours : shop.hoursWeekday || shop.hours);
+  const hours = hoursForDate(shop, date, weekend);
   return typeof hours === "string" ? { status: "possible", hours } : { status: "unknown", label: "営業時間不明" };
 }
 function hoursMatch(hours, minutes, previousDay = false) {
@@ -132,8 +135,21 @@ function refreshHours() {
     holidayState === "failed" ? "祝日情報を取得できませんでした。祝日の営業や振替休業を正しく表示できない場合があります。" :
     holidaysKnownFor(new Date()) ? "営業時間の判定には祝日も考慮しています。" : "今年の祝日情報を確認できないため、判定できません。";
   const now = new Date();
-  document.querySelectorAll(".shop").forEach((button, index) => {
-    button.querySelector(".open-status").textContent = shopHoursStatus(shopData[index], now).label;
+  const weekend = now.getDay() === 0 || now.getDay() === 6 || holidayDates.includes(dateKey(now));
+  shopCards.forEach(({ shop, status, hours, closure }) => {
+    const info = shopHoursStatus(shop, now);
+    status.textContent = info.label;
+    status.dataset.state = info.status;
+    const registeredHours = hoursForDate(shop, now, weekend);
+    hours.textContent = registeredHours
+      ? registeredHours.split(",").map(range => range.replace("-", "～")).join(" / ")
+      : "登録なし";
+
+    closure.parentElement.hidden = !info.closure;
+    if (info.closure) {
+      const { startDate, endDate } = info.closure;
+      closure.textContent = endDate === startDate ? startDate : `${startDate}～${endDate ?? "再開未定"}`;
+    }
   });
   applyFilters();
 }
@@ -153,50 +169,87 @@ async function loadHolidays() {
   finally { clearTimeout(timer); refreshHours(); }
 }
 
-shopData.forEach((shop) => {
-  const wrapper = document.createElement("div");
-  wrapper.className = "shop-card";
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "shop";
-  button.setAttribute("aria-label", `${shop.name}、${shop.area}`);
-  button.setAttribute(
-    "aria-pressed",
-    visited.includes(shop.id) ? "true" : "false"
-  );
+const weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"];
 
-  if (visited.includes(shop.id)) {
-    button.classList.add("visited");
-  }
+function regularClosureText(shop) {
+  const formatDays = days => days.map(day => weekdayLabels[day]).join("・") + "曜";
+  const parts = [];
+  if (shop.closedDays?.length) parts.push(formatDays(shop.closedDays));
+  if (shop.firstWeekdayClosed !== undefined) parts.push(`第1${weekdayLabels[shop.firstWeekdayClosed]}曜`);
+  if (shop.winterClosedDays?.length) parts.push(`冬季は${formatDays(shop.winterClosedDays)}も休み`);
+  if (shop.closedAfterHoliday) parts.push("祝日と重なる場合は翌日休");
+  return parts.join(" / ") || "登録なし";
+}
 
-  const nameSpan = document.createElement("span");
-nameSpan.className = `name ${shop.color}`;
-nameSpan.textContent = shop.name;
+function appendShopDetail(details, label, text = "") {
+  const row = document.createElement("div");
+  const term = document.createElement("dt");
+  term.textContent = label;
+  const value = document.createElement("dd");
+  value.textContent = text;
+  row.append(term, value);
+  details.append(row);
+  return value;
+}
 
-const areaSpan = document.createElement("span");
-areaSpan.className = "area";
-areaSpan.textContent = shop.area;
+function renderVisitState({ card, visitButton, visitIcon, visitLabel }, isVisited) {
+  card.classList.toggle("visited", isVisited);
+  visitButton.setAttribute("aria-pressed", String(isVisited));
+  visitIcon.textContent = isVisited ? "✓" : "○";
+  visitLabel.textContent = isVisited ? "訪問済み" : "未訪問";
+}
 
-button.appendChild(nameSpan);
-button.appendChild(areaSpan);
-const status = document.createElement("span");
-status.className = "open-status";
-status.textContent = shopHoursStatus(shop, new Date()).label;
-button.appendChild(status);
+const shopCards = shopData.map(shop => {
+  const card = document.createElement("article");
+  card.className = "shop-card";
+  card.dataset.shopId = String(shop.id);
 
- const mapQuery = encodeURIComponent(`${shop.name} 福島県喜多方市`);
- const mapButton = document.createElement("button");
- mapButton.textContent = "🗺️ 地図";
- mapButton.className = "map-button";
- mapButton.addEventListener("click", (event) => {
-  event.stopPropagation();
-  trackUsage('map_click');
-  window.open(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`, "_blank");
-});
-wrapper.appendChild(button);
-wrapper.appendChild(mapButton);
-  button.addEventListener("click", () => toggleVisited(shop.id, button));
-  shopsElement.appendChild(wrapper);
+  const header = document.createElement("div");
+  header.className = "shop-card-header";
+  const name = document.createElement("h2");
+  name.className = `shop-name ${shop.color}`;
+  name.textContent = shop.name;
+  const status = document.createElement("span");
+  status.className = "open-status";
+  header.append(name, status);
+
+  const details = document.createElement("dl");
+  details.className = "shop-details";
+  appendShopDetail(details, "地域", shop.area);
+  const hours = appendShopDetail(details, "営業時間");
+  appendShopDetail(details, "定休日", regularClosureText(shop));
+  const closure = appendShopDetail(details, "休業期間");
+
+  const actions = document.createElement("div");
+  actions.className = "shop-card-actions";
+  const mapButton = document.createElement("button");
+  mapButton.type = "button";
+  mapButton.className = "map-button";
+  mapButton.textContent = "地図を見る";
+  mapButton.setAttribute("aria-label", `地図を見る：${shop.name}`);
+  const mapQuery = encodeURIComponent(`${shop.name} 福島県喜多方市`);
+  mapButton.addEventListener("click", () => {
+    trackUsage('map_click');
+    window.open(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`, "_blank");
+  });
+
+  const visitButton = document.createElement("button");
+  visitButton.type = "button";
+  visitButton.className = "visit-button";
+  visitButton.setAttribute("aria-label", `訪問記録：${shop.name}`);
+  const visitIcon = document.createElement("span");
+  visitIcon.className = "visit-icon";
+  visitIcon.setAttribute("aria-hidden", "true");
+  const visitLabel = document.createElement("span");
+  visitButton.append(visitIcon, visitLabel);
+  const shopCard = { shop, card, status, hours, closure, visitButton, visitIcon, visitLabel };
+  renderVisitState(shopCard, visited.includes(shop.id));
+  visitButton.addEventListener("click", () => toggleVisited(shopCard));
+
+  actions.append(mapButton, visitButton);
+  card.append(header, details, actions);
+  shopsElement.append(card);
+  return shopCard;
 });
 
 resetButton.addEventListener("click", () => {
@@ -207,10 +260,7 @@ resetButton.addEventListener("click", () => {
   visited = [];
   saveVisited();
 
-  document.querySelectorAll(".shop.visited").forEach((button) => {
-    button.classList.remove("visited");
-    button.setAttribute("aria-pressed", "false");
-  });
+  shopCards.forEach(shopCard => renderVisitState(shopCard, false));
 
   updateCount();
   applyFilters();
@@ -253,15 +303,13 @@ const keyword = shopSearch.value.trim().toLowerCase();
 const now = new Date();
 let visibleCount = 0;
 
-document.querySelectorAll(".shop").forEach((button, index) => {
-const shopName = button.querySelector(".name").textContent.toLowerCase();
-const shopArea = button.querySelector(".area").textContent.trim();
-const matchesKeyword = shopName.includes(keyword);
-const matchesArea = selectedArea === "all" || shopArea === selectedArea;
-const matchesVisit = visitFilter === "all" || (visitFilter === "visited" && button.classList.contains("visited")) || (visitFilter === "unvisited" && !button.classList.contains("visited"));
-const matchesOpen = !openFilter || isOpenNow(shopData[index], now);
-button.parentElement.hidden = !(matchesKeyword && matchesArea && matchesVisit && matchesOpen);
-if (!button.parentElement.hidden) visibleCount++;
+shopCards.forEach(({ shop, card }) => {
+  const matchesKeyword = shop.name.toLowerCase().includes(keyword);
+  const matchesArea = selectedArea === "all" || shop.area === selectedArea;
+  const matchesVisit = visitFilter === "all" || card.classList.contains("visited") === (visitFilter === "visited");
+  const matchesOpen = !openFilter || isOpenNow(shop, now);
+  card.hidden = !(matchesKeyword && matchesArea && matchesVisit && matchesOpen);
+  if (!card.hidden) visibleCount++;
 });
 document.getElementById("result-count").textContent = `表示中 ${visibleCount}店`;
 window.dispatchEvent(new Event("kitakata:filters-updated"));

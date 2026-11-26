@@ -11,7 +11,7 @@ class Element {
   set className(v) { this._className=v; this.classes=new Set(v.split(' ')); } get className(){return this._className;}
   setAttribute(k,v){this.attributes[k]=v;} appendChild(e){e.parentElement=this;this.children.push(e);return e;} append(...e){e.forEach(child=>this.appendChild(child));} after(){}
   replaceChildren(...e){this.children=e;} addEventListener(k,f){(this.listeners[k]??=[]).push(f);} click(){this.fire('click',{target:this});} fire(k,event={}){for(const f of this.listeners[k]||[]) f(event);}
-  querySelector(s){return this.children.find(e=>e.classes.has(s.slice(1)))||null;} animate(){}
+  querySelector(s){for(const child of this.children){if(child.classes.has(s.slice(1)))return child;const match=child.querySelector(s);if(match)return match;}return null;} animate(){}
 }
 async function boot({stored='[2]', fail=false, blocked=false, pending=false, now=null, timers=false, analytics='capture'}={}) {
  let clockTime = now === null ? null : new Date(now).getTime();
@@ -21,12 +21,9 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  }
  const ids={}; const find=(nodes,id)=>{for(const n of nodes){if(n.id===id)return n;const found=find(n.children||[],id);if(found)return found;}}; const get=id=>ids[id]||find(Object.values(ids),id)||(ids[id]=new Element()); get('shop-search').value='';
  const storage=new Map([['kitakata-ramen-visited-v1',stored],['kitakata-ramen-previous-questions','broken']]);
- const shopButton=index=>get('shops').children[index]?.querySelector('.shop');
- const doc={getElementById:get,createElement:()=>new Element(),querySelector:s=>get(s),querySelectorAll:s=>{
-   const buttons=get('shops').children.map((_,index)=>shopButton(index)).filter(Boolean);
-   if(s==='.shop'||s==='#shops .shop') return buttons;
-   return s==='.shop.visited' ? buttons.filter(button=>button.classes.has('visited')) : [];
- }};
+ const shopCard=index=>get('shops').children[index];
+ const shopButton=index=>shopCard(index)?.querySelector('.visit-button');
+ const doc={getElementById:get,createElement:()=>new Element(),querySelector:s=>get(s),querySelectorAll:s=>s==='#shops .shop-card'?get('shops').children:[]};
  let resolveFetch; const response={ok:true,json:async()=>({'2026-01-01':'fixture','2026-11-03':'fixture','2025-01-01':'fixture'})};
  const windowEvents=new Element();
  const sandbox={document:doc,localStorage:{getItem:k=>{if(blocked)throw Error('blocked');return storage.get(k)??null;},setItem:(k,v)=>{if(blocked)throw Error('blocked');storage.set(k,v);}},fetch:()=>pending?new Promise(r=>resolveFetch=r):fail?Promise.reject(Error('offline')):Promise.resolve(response),AbortController,Event,setTimeout:()=>1,clearTimeout(){},setInterval(){},window:{confirm:()=>true,open:(...a)=>sandbox.opened.push(a),addEventListener:(name,fn)=>windowEvents.addEventListener(name,fn),dispatchEvent:event=>windowEvents.fire(event.type,event)},opened:[],console};
@@ -43,7 +40,7 @@ async function boot({stored='[2]', fail=false, blocked=false, pending=false, now
  vm.createContext(sandbox); for(const file of ['shops.js','shop-closures.js','app.js','questions.js','diagnosis.js']) vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
  const run=code=>vm.runInContext(code,sandbox); await new Promise(r=>setImmediate(r));
  const takeNextTimer=()=>{const entry=timerQueue.entries().next().value;if(!entry)return null;const [id,callback]=entry;timerQueue.delete(id);return callback;};
- return {get,shopButton,run,storage,sandbox,analyticsEvents,runTimers,takeNextTimer,pendingTimers:()=>timerQueue.size,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
+ return {get,shopCard,shopButton,run,storage,sandbox,analyticsEvents,runTimers,takeNextTimer,pendingTimers:()=>timerQueue.size,setNow:value=>{clockTime=new Date(value).getTime();},finish:async()=>{resolveFetch(response);await new Promise(r=>setImmediate(r));}};
 }
 if (require.main === module) (async()=>{
  let checks=0; const check=(v,msg)=>{assert.ok(v,msg);checks++;};
@@ -212,7 +209,7 @@ if (require.main === module) (async()=>{
  check(policy.get('shops').children.filter(e=>!e.hidden).length===2, 'Korakuen remains searchable');
  for (const id of [92,93]) {
    const card=policy.get('shops').children[id-1];
-   check(policy.shopButton(id-1).classes.has('visited'), 'Korakuen visited ID retained '+id);
+   check(policy.shopButton(id-1).attributes['aria-pressed']==='true', 'Korakuen visited ID retained '+id);
    card.querySelector('.map-button').fire('click',{stopPropagation(){}});
  }
  check(policy.sandbox.opened.length===2 && policy.storage.get('kitakata-ramen-visited-v1')===saved69, 'both Korakuen maps open without changing saved visits');
