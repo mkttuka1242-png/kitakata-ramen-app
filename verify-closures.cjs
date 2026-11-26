@@ -50,7 +50,7 @@ function panelText(node) {
 (async () => {
   const app = await boot({ stored: saved, now: '2026-11-29T12:00:00+09:00', timers: true });
   const { run } = app;
-  const card = app.shopButton(76);
+  const card = app.shopCard(76);
   const status = card.querySelector('.open-status');
   run('const en = shopData.find(shop => shop.id === 77);');
   const closure = "(getShopClosure(77)?.label ?? '')";
@@ -93,14 +93,14 @@ function panelText(node) {
     equal(popupStatus.hidden, !label, 'popup visibility at ' + instant);
     equal(popupStatus.textContent, label, 'popup label at ' + instant);
     equal(visible.has(pin), true, 'pin remains in map search at ' + instant);
-    equal(card.parentElement.hidden, false, 'card remains in search at ' + instant);
+    equal(card.hidden, false, 'card remains in search at ' + instant);
     if (!label) continue;
     equal(status.textContent, label, 'card label at ' + instant);
     equal(run('isOpenNow(en)'), false, 'open now at ' + instant);
     equal(run('shopHoursStatus(en, new Date(), false).label'), label, 'date-only decision at ' + instant);
     equal(run(rouletteHasEn), false, 'roulette exclusion at ' + instant);
     app.get('filter-open').click();
-    equal(card.parentElement.hidden, true, 'open filter hides card at ' + instant);
+    equal(card.hidden, true, 'open filter hides card at ' + instant);
     equal(visible.has(pin), false, 'open filter hides pin at ' + instant);
     app.get('filter-open').click();
     equal(visible.has(pin), true, 'clearing the open filter restores pin at ' + instant);
@@ -151,7 +151,7 @@ function panelText(node) {
   equal(rouletteButton.disabled, false, 'roulette can run again');
 
   const outage = await boot({ fail: true, now: '2026-12-01T03:00:00Z' });
-  equal(outage.shopButton(76).querySelector('.open-status').textContent, '冬期休業', 'closure takes precedence when holiday data fails');
+  equal(outage.shopCard(76).querySelector('.open-status').textContent, '冬期休業', 'closure takes precedence when holiday data fails');
   run('shopClosures[77][1].endDate = "2027-03-31"');
   app.setNow('2027-03-31T14:59:59.999Z');
   equal(run(closure), '冬期休業', 'known end date is inclusive');

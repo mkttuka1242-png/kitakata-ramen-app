@@ -69,16 +69,16 @@
     if (!map) return;
     const now = new Date();
     const nextMarkers = [];
-    document.querySelectorAll('#shops .shop').forEach((button, index) => {
-      if (button.parentElement.hidden) return;
-      const shop = shopData[index];
-      const entry = markers.get(shop.id);
+    document.querySelectorAll('#shops .shop-card').forEach(card => {
+      if (card.hidden) return;
+      const shopId = Number(card.dataset.shopId);
+      const entry = markers.get(shopId);
       if (!entry) return;
       const { marker, closureStatus } = entry;
-      const closure = getShopClosure(shop.id, now);
+      const closure = getShopClosure(shopId, now);
       closureStatus.textContent = closure?.label ?? '';
       closureStatus.hidden = !closure;
-      const visited = button.classList.contains('visited');
+      const visited = card.classList.contains('visited');
       marker.setOpacity(visited ? 1 : 0.65);
       nextMarkers.push(marker);
     });
